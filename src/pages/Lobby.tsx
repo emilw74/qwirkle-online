@@ -9,14 +9,14 @@ import {
 import { cn } from '../utils/cn';
 import {
   Users, Bot, Play, Plus, LogIn, Trophy, History, Copy, Check,
-  ArrowLeft, Gamepad2, RefreshCw, ChevronRight, X, BookOpen,
+  ArrowLeft, Gamepad2, RefreshCw, ChevronRight, X, BookOpen, Info,
 } from 'lucide-react';
 import { AILevel, GameState, Tile } from '../game/types';
 import { TileView } from '../components/TileView';
 import { posKey, parseKey } from '../game/engine';
 
 interface LobbyProps {
-  onNavigate: (page: 'game' | 'leaderboard' | 'history' | 'rules') => void;
+  onNavigate: (page: 'game' | 'leaderboard' | 'history' | 'rules' | 'about') => void;
 }
 
 // --- Mini Board for finished game detail ---
@@ -739,30 +739,38 @@ export function Lobby({ onNavigate }: LobbyProps) {
       </div>
 
       {/* Secondary actions */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-4 gap-2">
         <button
           onClick={() => onNavigate('leaderboard')}
-          className="p-4 rounded-xl bg-card border border-border/50 hover:bg-muted/50 transition-all text-center shadow-sm"
+          className="p-3 rounded-xl bg-card border border-border/50 hover:bg-muted/50 transition-all text-center shadow-sm"
           data-testid="leaderboard"
         >
-          <Trophy size={24} className="mx-auto mb-2 text-yellow-500" />
-          <div className="text-sm font-medium">Ranking</div>
+          <Trophy size={22} className="mx-auto mb-1.5 text-yellow-500" />
+          <div className="text-xs font-medium">Ranking</div>
         </button>
         <button
           onClick={() => onNavigate('history')}
-          className="p-4 rounded-xl bg-card border border-border/50 hover:bg-muted/50 transition-all text-center shadow-sm"
+          className="p-3 rounded-xl bg-card border border-border/50 hover:bg-muted/50 transition-all text-center shadow-sm"
           data-testid="game-history"
         >
-          <History size={24} className="mx-auto mb-2 text-blue-500" />
-          <div className="text-sm font-medium">Historia</div>
+          <History size={22} className="mx-auto mb-1.5 text-blue-500" />
+          <div className="text-xs font-medium">Historia</div>
         </button>
         <button
           onClick={() => onNavigate('rules')}
-          className="p-4 rounded-xl bg-card border border-border/50 hover:bg-muted/50 transition-all text-center shadow-sm"
+          className="p-3 rounded-xl bg-card border border-border/50 hover:bg-muted/50 transition-all text-center shadow-sm"
           data-testid="rules"
         >
-          <BookOpen size={24} className="mx-auto mb-2 text-emerald-500" />
-          <div className="text-sm font-medium">Zasady</div>
+          <BookOpen size={22} className="mx-auto mb-1.5 text-emerald-500" />
+          <div className="text-xs font-medium">Zasady</div>
+        </button>
+        <button
+          onClick={() => onNavigate('about')}
+          className="p-3 rounded-xl bg-card border border-border/50 hover:bg-muted/50 transition-all text-center shadow-sm"
+          data-testid="about"
+        >
+          <Info size={22} className="mx-auto mb-1.5 text-violet-500" />
+          <div className="text-xs font-medium">O grze</div>
         </button>
       </div>
 
