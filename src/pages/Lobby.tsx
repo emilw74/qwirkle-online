@@ -137,8 +137,7 @@ function FinishedGameDetail({ session, onClose }: { session: PlayerSession; onCl
 }
 
 export function Lobby({ onNavigate }: LobbyProps) {
-  const { nickname, setNickname, setPlayerId, setRoomCode, setGameState } = useGameStore();
-  const [localNickname, setLocalNickname] = useState(nickname || '');
+  const { uid, nickname, setPlayerId, setRoomCode, setGameState } = useGameStore();
   const [mode, setMode] = useState<'menu' | 'create' | 'join' | 'waiting' | 'mygames'>('menu');
   const [joinCode, setJoinCode] = useState('');
   const [error, setError] = useState('');
@@ -153,12 +152,14 @@ export function Lobby({ onNavigate }: LobbyProps) {
   const [loadingGames, setLoadingGames] = useState(false);
   const [selectedFinished, setSelectedFinished] = useState<PlayerSession | null>(null);
 
-  const loadGames = async (nick?: string) => {
-    const n = nick || localNickname.trim();
-    if (!n) return;
+  const currentNick = nickname || 'Gracz';
+  const currentUid = uid || '';
+
+  const loadGames = async () => {
+    if (!currentUid) return;
     setLoadingGames(true);
     try {
-      const games = await getGamesForPlayer(n);
+      const games = await getGamesForPlayer(currentUid);
       setPlayerGames(games);
     } catch (e) {
       console.error('Error loading games:', e);
@@ -167,19 +168,18 @@ export function Lobby({ onNavigate }: LobbyProps) {
   };
 
   const handleCreateRoom = async () => {
-    if (!localNickname.trim()) { setError('Wpisz nick'); return; }
+    if (!currentUid) { setError('Błąd autoryzacji'); return; }
     setIsLoading(true);
     setError('');
     try {
-      const { roomCode, playerId, gameState } = await createRoom(localNickname.trim(), maxPlayers);
-      setNickname(localNickname.trim());
+      const { roomCode, playerId, gameState } = await createRoom(currentNick, maxPlayers, currentUid);
       setPlayerId(playerId);
       setRoomCode(roomCode);
       setGameState(gameState);
-      setRoomInfo({ code: roomCode, players: [localNickname.trim()] });
+      setRoomInfo({ code: roomCode, players: [currentNick] });
       setMode('waiting');
 
-      await savePlayerSession(localNickname.trim(), roomCode, playerId, gameState.players);
+      await savePlayerSession(currentUid, roomCode, playerId, gameState.players);
 
       const unsub = subscribeToRoom(roomCode, (state) => {
         if (state) {
@@ -189,7 +189,7 @@ export function Lobby({ onNavigate }: LobbyProps) {
             players: state.players.map(p => p.nickname),
           });
           if (state.phase === 'playing') {
-            updateSessionGameName(localNickname.trim(), roomCode, state.players);
+            updateSessionGameName(currentUid, roomCode, state.players);
             onNavigate('game');
           }
         }
@@ -202,20 +202,19 @@ export function Lobby({ onNavigate }: LobbyProps) {
   };
 
   const handleJoinRoom = async () => {
-    if (!localNickname.trim()) { setError('Wpisz nick'); return; }
+    if (!currentUid) { setError('Błąd autoryzacji'); return; }
     if (joinCode.length !== 6) { setError('Kod pokoju musi mieć 6 cyfr'); return; }
     setIsLoading(true);
     setError('');
     try {
-      const { playerId, gameState } = await joinRoom(joinCode, localNickname.trim());
-      setNickname(localNickname.trim());
+      const { playerId, gameState } = await joinRoom(joinCode, currentNick, currentUid);
       setPlayerId(playerId);
       setRoomCode(joinCode);
       setGameState(gameState);
       setMode('waiting');
       setRoomInfo({ code: joinCode, players: gameState.players.map(p => p.nickname) });
 
-      await savePlayerSession(localNickname.trim(), joinCode, playerId, gameState.players);
+      await savePlayerSession(currentUid, joinCode, playerId, gameState.players);
 
       const unsub = subscribeToRoom(joinCode, (state) => {
         if (state) {
@@ -225,7 +224,7 @@ export function Lobby({ onNavigate }: LobbyProps) {
             players: state.players.map(p => p.nickname),
           });
           if (state.phase === 'playing') {
-            updateSessionGameName(localNickname.trim(), joinCode, state.players);
+            updateSessionGameName(currentUid, joinCode, state.players);
             onNavigate('game');
           }
         }
@@ -241,14 +240,13 @@ export function Lobby({ onNavigate }: LobbyProps) {
     setIsLoading(true);
     setError('');
     try {
-      setNickname(localNickname.trim());
       setPlayerId(session.playerId);
       setRoomCode(session.roomCode);
 
       const unsub = subscribeToRoom(session.roomCode, (state) => {
         if (state) {
           setGameState(state);
-          updateSessionGameName(localNickname.trim(), session.roomCode, state.players);
+          updateSessionGameName(currentUid, session.roomCode, state.players);
         }
       });
       setUnsubscribe(() => unsub);
@@ -263,7 +261,7 @@ export function Lobby({ onNavigate }: LobbyProps) {
 
   const handleDeleteFinished = async (session: PlayerSession) => {
     try {
-      await removePlayerSession(localNickname.trim(), session.roomCode);
+      await removePlayerSession(currentUid, session.roomCode);
       setPlayerGames(prev => ({
         ...prev,
         finished: prev.finished.filter(s => s.roomCode !== session.roomCode),
@@ -278,7 +276,7 @@ export function Lobby({ onNavigate }: LobbyProps) {
     setIsLoading(true);
     try {
       const updatedState = await addAIToRoom(roomInfo.code, level);
-      await savePlayerSession(localNickname.trim(), roomInfo.code, useGameStore.getState().playerId!, updatedState.players);
+      await savePlayerSession(currentUid, roomInfo.code, useGameStore.getState().playerId!, updatedState.players);
     } catch (e: any) {
       setError(e.message || 'Błąd dodawania AI');
     }
@@ -312,7 +310,6 @@ export function Lobby({ onNavigate }: LobbyProps) {
   };
 
   const handleOpenMyGames = () => {
-    if (!localNickname.trim()) { setError('Wpisz nick aby zobaczyć swoje gry'); return; }
     setError('');
     setMode('mygames');
     loadGames();
@@ -599,17 +596,15 @@ export function Lobby({ onNavigate }: LobbyProps) {
           </h2>
 
           <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium mb-1.5">Twój nick</label>
-              <input
-                type="text"
-                value={localNickname}
-                onChange={e => setLocalNickname(e.target.value)}
-                maxLength={16}
-                placeholder="Wpisz nick..."
-                className="w-full px-4 py-2.5 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring text-sm"
-                data-testid="nickname-input"
-              />
+            {/* Show current player */}
+            <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+              <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold text-primary">
+                {currentNick.charAt(0).toUpperCase()}
+              </div>
+              <div>
+                <div className="font-medium text-sm">{currentNick}</div>
+                <div className="text-xs text-muted-foreground">Zalogowany</div>
+              </div>
             </div>
 
             {mode === 'join' && (

@@ -3,15 +3,26 @@ import { Lobby } from './pages/Lobby';
 import { Game } from './pages/Game';
 import { Leaderboard } from './pages/Leaderboard';
 import { GameHistory } from './pages/GameHistory';
+import { AuthGate } from './components/AuthGate';
 import { useGameStore } from './hooks/useGameStore';
+import { signOut } from './firebase/authService';
 import { cn } from './utils/cn';
-import { Moon, Sun, Home } from 'lucide-react';
+import { Moon, Sun, Home, LogOut, Pencil } from 'lucide-react';
+import { UserProfile, updateNickname } from './firebase/authService';
 
 type Page = 'lobby' | 'game' | 'leaderboard' | 'history';
 
-function App() {
+function AppContent({ profile }: { profile: UserProfile }) {
   const [page, setPage] = useState<Page>('lobby');
-  const { isDarkMode, toggleDarkMode, leaveGame } = useGameStore();
+  const { isDarkMode, toggleDarkMode, leaveGame, setAuth, nickname } = useGameStore();
+  const [editingNick, setEditingNick] = useState(false);
+  const [nickInput, setNickInput] = useState('');
+  const [nickError, setNickError] = useState('');
+
+  // Set auth on mount and when profile changes
+  useEffect(() => {
+    setAuth(profile.uid, profile.nickname, profile.photoURL);
+  }, [profile.uid, profile.nickname, profile.photoURL]);
 
   // Initialize dark mode
   useEffect(() => {
@@ -27,7 +38,34 @@ function App() {
     setPage('lobby');
   };
 
+  const handleSignOut = async () => {
+    await signOut();
+    useGameStore.getState().reset();
+  };
+
+  const handleStartEditNick = () => {
+    setNickInput(nickname || profile.nickname);
+    setNickError('');
+    setEditingNick(true);
+  };
+
+  const handleSaveNick = async () => {
+    const trimmed = nickInput.trim();
+    if (!trimmed || trimmed.length > 16) {
+      setNickError('Nick musi mieć 1-16 znaków');
+      return;
+    }
+    try {
+      await updateNickname(profile.uid, trimmed);
+      setAuth(profile.uid, trimmed, profile.photoURL);
+      setEditingNick(false);
+    } catch (e: any) {
+      setNickError(e.message || 'Błąd zmiany nicku');
+    }
+  };
+
   const isGame = page === 'game';
+  const displayNick = nickname || profile.nickname;
 
   return (
     <div className={cn(
@@ -62,6 +100,33 @@ function App() {
           </button>
 
           <div className="flex items-center gap-1">
+            {/* User info */}
+            {!isGame && (
+              <div className="flex items-center gap-2 mr-2">
+                {profile.photoURL ? (
+                  <img
+                    src={profile.photoURL}
+                    alt=""
+                    className="w-6 h-6 rounded-full"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold text-primary">
+                    {displayNick.charAt(0).toUpperCase()}
+                  </div>
+                )}
+                <span className="text-xs font-medium hidden sm:inline max-w-[100px] truncate">
+                  {displayNick}
+                </span>
+                <button
+                  onClick={handleStartEditNick}
+                  className="p-1 rounded hover:bg-muted transition-colors"
+                  title="Zmień nick"
+                >
+                  <Pencil size={12} className="text-muted-foreground" />
+                </button>
+              </div>
+            )}
             {isGame && (
               <button
                 onClick={handleNavigateHome}
@@ -82,9 +147,57 @@ function App() {
             >
               {isDarkMode ? <Sun size={isGame ? 16 : 18} /> : <Moon size={isGame ? 16 : 18} />}
             </button>
+            {!isGame && (
+              <button
+                onClick={handleSignOut}
+                className="p-2 rounded-lg hover:bg-muted transition-colors"
+                title="Wyloguj się"
+                data-testid="sign-out"
+              >
+                <LogOut size={18} className="text-muted-foreground" />
+              </button>
+            )}
           </div>
         </div>
       </header>
+
+      {/* Nick edit modal */}
+      {editingNick && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-card rounded-2xl border border-border p-5 max-w-sm w-full shadow-xl space-y-4">
+            <h3 className="font-display font-bold text-lg">Zmień nick</h3>
+            <input
+              type="text"
+              value={nickInput}
+              onChange={e => setNickInput(e.target.value)}
+              maxLength={16}
+              placeholder="Nowy nick..."
+              className="w-full px-4 py-2.5 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring text-sm"
+              autoFocus
+              onKeyDown={e => e.key === 'Enter' && handleSaveNick()}
+              data-testid="edit-nickname-input"
+            />
+            {nickError && (
+              <div className="text-xs text-destructive">{nickError}</div>
+            )}
+            <div className="flex gap-2">
+              <button
+                onClick={() => setEditingNick(false)}
+                className="flex-1 py-2.5 rounded-lg border border-border text-sm font-medium hover:bg-muted transition-colors"
+              >
+                Anuluj
+              </button>
+              <button
+                onClick={handleSaveNick}
+                className="flex-1 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-all"
+                data-testid="save-nickname"
+              >
+                Zapisz
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main content */}
       {isGame ? (
@@ -105,6 +218,14 @@ function App() {
         </main>
       )}
     </div>
+  );
+}
+
+function App() {
+  return (
+    <AuthGate>
+      {(profile) => <AppContent profile={profile} />}
+    </AuthGate>
   );
 }
 

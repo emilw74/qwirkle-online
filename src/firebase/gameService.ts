@@ -1,7 +1,7 @@
 import { db } from './config';
 import {
   ref, set, get, update, onValue, off, push, remove,
-  query, orderByChild, limitToLast, equalTo, DataSnapshot
+  query, orderByChild, limitToLast, DataSnapshot
 } from 'firebase/database';
 import {
   GameState, Player, Tile, PlacedTile, GameMove,
@@ -14,7 +14,6 @@ import {
 import { getAIMove, shouldAISwap } from '../game/ai';
 
 // --- Firebase Data Sanitization ---
-// Firebase converts empty arrays/objects to null
 function sanitizeGameState(state: GameState): GameState {
   return {
     ...state,
@@ -29,7 +28,6 @@ function sanitizeGameState(state: GameState): GameState {
   };
 }
 
-// Remove undefined values before writing to Firebase (Firebase rejects undefined)
 function stripUndefined<T>(obj: T): T {
   return JSON.parse(JSON.stringify(obj));
 }
@@ -38,10 +36,12 @@ function stripUndefined<T>(obj: T): T {
 
 export async function createRoom(
   hostNickname: string,
-  maxPlayers: number
+  maxPlayers: number,
+  uid: string
 ): Promise<{ roomCode: string; playerId: string; gameState: GameState }> {
   const roomCode = generateRoomCode();
-  const playerId = `player_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  // Use uid as playerId for consistent identification across devices
+  const playerId = uid;
   const gameState = createGameState(roomCode, playerId, hostNickname, maxPlayers);
 
   await set(ref(db, `rooms/${roomCode}`), stripUndefined(gameState));
@@ -50,7 +50,8 @@ export async function createRoom(
 
 export async function joinRoom(
   roomCode: string,
-  nickname: string
+  nickname: string,
+  uid: string
 ): Promise<{ playerId: string; gameState: GameState }> {
   const snapshot = await get(ref(db, `rooms/${roomCode}`));
   if (!snapshot.exists()) throw new Error('Pokój nie istnieje');
@@ -64,7 +65,13 @@ export async function joinRoom(
     throw new Error('Ten nick jest już zajęty w tym pokoju');
   }
 
-  const playerId = `player_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  // Check if user already in room (by uid)
+  if (gameState.players.some(p => p.id === uid)) {
+    throw new Error('Już jesteś w tym pokoju');
+  }
+
+  // Use uid as playerId
+  const playerId = uid;
   const updatedState = addPlayerToGame(gameState, playerId, nickname);
 
   await set(ref(db, `rooms/${roomCode}`), stripUndefined(updatedState));
@@ -107,19 +114,17 @@ export async function placeTiles(
   if (!snapshot.exists()) throw new Error('Pokój nie istnieje');
 
   const gameState = sanitizeGameState(snapshot.val() as GameState);
-
   const updatedState = applyMove(gameState, placedTiles, playerId);
 
   await set(ref(db, `rooms/${roomCode}`), stripUndefined(updatedState));
 
-  // Save to history if game finished
   if (updatedState.phase === 'finished') {
     await saveGameHistory(updatedState);
     await updateLeaderboard(updatedState);
-    // Mark all human player sessions as finished
+    // Mark all human player sessions as finished (using uid = playerId)
     for (const p of updatedState.players) {
       if (!p.isAI) {
-        await markSessionFinished(p.nickname, roomCode, updatedState).catch(() => {});
+        await markSessionFinished(p.id, roomCode, updatedState).catch(() => {});
       }
     }
   }
@@ -136,7 +141,6 @@ export async function swapPlayerTiles(
   if (!snapshot.exists()) throw new Error('Pokój nie istnieje');
 
   const gameState = sanitizeGameState(snapshot.val() as GameState);
-
   const updatedState = swapTiles(gameState, tiles, playerId);
 
   await set(ref(db, `rooms/${roomCode}`), stripUndefined(updatedState));
@@ -151,7 +155,6 @@ export async function passPlayerTurn(
   if (!snapshot.exists()) throw new Error('Pokój nie istnieje');
 
   const gameState = sanitizeGameState(snapshot.val() as GameState);
-
   const updatedState = passTurn(gameState, playerId);
 
   await set(ref(db, `rooms/${roomCode}`), stripUndefined(updatedState));
@@ -159,10 +162,9 @@ export async function passPlayerTurn(
   if (updatedState.phase === 'finished') {
     await saveGameHistory(updatedState);
     await updateLeaderboard(updatedState);
-    // Mark all human player sessions as finished
     for (const p of updatedState.players) {
       if (!p.isAI) {
-        await markSessionFinished(p.nickname, roomCode, updatedState).catch(() => {});
+        await markSessionFinished(p.id, roomCode, updatedState).catch(() => {});
       }
     }
   }
@@ -183,17 +185,14 @@ export async function executeAITurn(roomCode: string): Promise<GameState> {
 
   const aiLevel = currentPlayer.aiLevel || 'medium';
 
-  // Check if AI should swap
   const swapResult = shouldAISwap(gameState.board || {}, currentPlayer.hand, aiLevel, (gameState.bag || []).length);
   if (swapResult) {
     return swapPlayerTiles(roomCode, currentPlayer.id, swapResult);
   }
 
-  // Get AI move
   const aiMove = getAIMove(gameState.board || {}, currentPlayer.hand, aiLevel, (gameState.bag || []).length);
 
   if (!aiMove) {
-    // AI passes
     return passPlayerTurn(roomCode, currentPlayer.id);
   }
 
@@ -240,7 +239,8 @@ async function updateLeaderboard(gameState: GameState): Promise<void> {
   for (const player of gameState.players) {
     if (player.isAI) continue;
 
-    const playerRef = ref(db, `leaderboard/${encodeNickname(player.nickname)}`);
+    // Use player.id (uid) as key for leaderboard
+    const playerRef = ref(db, `leaderboard/${player.id}`);
     const snapshot = await get(playerRef);
 
     const isWinner = gameState.winner === player.nickname;
@@ -251,6 +251,7 @@ async function updateLeaderboard(gameState: GameState): Promise<void> {
     if (snapshot.exists()) {
       const existing = snapshot.val() as LeaderboardEntry;
       await update(playerRef, {
+        nickname: player.nickname, // Update nickname in case it changed
         gamesPlayed: existing.gamesPlayed + 1,
         gamesWon: existing.gamesWon + (isWinner ? 1 : 0),
         highestScore: Math.max(existing.highestScore, player.score),
@@ -271,10 +272,6 @@ async function updateLeaderboard(gameState: GameState): Promise<void> {
       });
     }
   }
-}
-
-function encodeNickname(name: string): string {
-  return name.replace(/[.#$/[\]]/g, '_');
 }
 
 // --- Game History ---
@@ -312,7 +309,7 @@ export async function getGameHistory(limit: number = 50): Promise<GameHistoryEnt
   return entries;
 }
 
-// --- Player Sessions (multi-game support) ---
+// --- Player Sessions (multi-game support, keyed by uid) ---
 
 export interface PlayerSession {
   roomCode: string;
@@ -329,8 +326,8 @@ export interface PlayerSession {
 function generateGameName(players: { nickname: string; isAI?: boolean; aiLevel?: string }[]): string {
   const names = players.map(p => {
     if (p.isAI) {
-      const levelMap: Record<string, string> = { easy: '\u0141atwy', medium: '\u015aredni', hard: 'Trudny' };
-      return `Bot ${levelMap[p.aiLevel || 'medium'] || '\u015aredni'}`;
+      const levelMap: Record<string, string> = { easy: 'Łatwy', medium: 'Średni', hard: 'Trudny' };
+      return `Bot ${levelMap[p.aiLevel || 'medium'] || 'Średni'}`;
     }
     return p.nickname;
   });
@@ -339,12 +336,11 @@ function generateGameName(players: { nickname: string; isAI?: boolean; aiLevel?:
 }
 
 export async function savePlayerSession(
-  nickname: string,
+  uid: string,
   roomCode: string,
   playerId: string,
   players: { nickname: string; isAI?: boolean; aiLevel?: string }[]
 ): Promise<void> {
-  const encodedNick = encodeNickname(nickname);
   const session: PlayerSession = {
     roomCode,
     playerId,
@@ -352,26 +348,24 @@ export async function savePlayerSession(
     joinedAt: Date.now(),
     status: 'active',
   };
-  await set(ref(db, `playerSessions/${encodedNick}/${roomCode}`), stripUndefined(session));
+  await set(ref(db, `playerSessions/${uid}/${roomCode}`), stripUndefined(session));
 }
 
 export async function updateSessionGameName(
-  nickname: string,
+  uid: string,
   roomCode: string,
   players: { nickname: string; isAI?: boolean; aiLevel?: string }[]
 ): Promise<void> {
-  const encodedNick = encodeNickname(nickname);
   const gameName = generateGameName(players);
-  await update(ref(db, `playerSessions/${encodedNick}/${roomCode}`), { gameName });
+  await update(ref(db, `playerSessions/${uid}/${roomCode}`), { gameName });
 }
 
 export async function markSessionFinished(
-  nickname: string,
+  uid: string,
   roomCode: string,
   gameState: GameState
 ): Promise<void> {
-  const encodedNick = encodeNickname(nickname);
-  await update(ref(db, `playerSessions/${encodedNick}/${roomCode}`), stripUndefined({
+  await update(ref(db, `playerSessions/${uid}/${roomCode}`), stripUndefined({
     status: 'finished',
     finishedAt: Date.now(),
     finalBoard: gameState.board || {},
@@ -386,18 +380,16 @@ export async function markSessionFinished(
 }
 
 export async function removePlayerSession(
-  nickname: string,
+  uid: string,
   roomCode: string
 ): Promise<void> {
-  const encodedNick = encodeNickname(nickname);
-  await remove(ref(db, `playerSessions/${encodedNick}/${roomCode}`));
+  await remove(ref(db, `playerSessions/${uid}/${roomCode}`));
 }
 
 export async function getPlayerSessions(
-  nickname: string
+  uid: string
 ): Promise<PlayerSession[]> {
-  const encodedNick = encodeNickname(nickname);
-  const snapshot = await get(ref(db, `playerSessions/${encodedNick}`));
+  const snapshot = await get(ref(db, `playerSessions/${uid}`));
   if (!snapshot.exists()) return [];
   const data = snapshot.val();
   return Object.values(data) as PlayerSession[];
@@ -409,26 +401,23 @@ export interface PlayerGames {
 }
 
 export async function getGamesForPlayer(
-  nickname: string
+  uid: string
 ): Promise<PlayerGames> {
-  const sessions = await getPlayerSessions(nickname);
+  const sessions = await getPlayerSessions(uid);
   const active: { session: PlayerSession; gameState: GameState }[] = [];
   const finished: PlayerSession[] = [];
 
   for (const session of sessions) {
-    // Already marked as finished — no need to fetch room
     if (session.status === 'finished') {
       finished.push(session);
       continue;
     }
 
-    // Active session — verify room still exists
     const snapshot = await get(ref(db, `rooms/${session.roomCode}`));
     if (snapshot.exists()) {
       const state = sanitizeGameState(snapshot.val() as GameState);
       if (state.phase === 'finished') {
-        // Game ended while player was away — mark as finished
-        await markSessionFinished(nickname, session.roomCode, state);
+        await markSessionFinished(uid, session.roomCode, state);
         finished.push({
           ...session,
           status: 'finished',
@@ -441,12 +430,10 @@ export async function getGamesForPlayer(
         active.push({ session, gameState: state });
       }
     } else {
-      // Room deleted — clean up
-      await removePlayerSession(nickname, session.roomCode);
+      await removePlayerSession(uid, session.roomCode);
     }
   }
 
-  // Sort finished by date descending
   finished.sort((a, b) => (b.finishedAt || 0) - (a.finishedAt || 0));
 
   return { active, finished };
