@@ -72,11 +72,16 @@ export function Game({ onNavigate }: GameProps) {
     };
   }, [gameState?.currentPlayerIndex, gameState?.phase, roomCode]);
 
-  // Show last move info
+  // Show last move info — stays visible until the next player makes their move
+  const prevMovesLengthRef = useRef(gameState?.moves?.length || 0);
+
   useEffect(() => {
-    if (!gameState?.moves?.length) return;
-    const lastMove = gameState.moves[gameState.moves.length - 1];
-    const player = gameState.players.find(p => p.id === lastMove.playerId);
+    const movesLen = gameState?.moves?.length || 0;
+    if (movesLen === 0 || movesLen === prevMovesLengthRef.current) return;
+    prevMovesLengthRef.current = movesLen;
+
+    const lastMove = gameState!.moves[movesLen - 1];
+    const player = gameState!.players.find(p => p.id === lastMove.playerId);
     if (!player) return;
 
     if (lastMove.isSwap) {
@@ -85,9 +90,6 @@ export function Game({ onNavigate }: GameProps) {
       const qwirkle = lastMove.score >= 12 ? ' QWIRKLE!' : '';
       setLastMoveInfo(`${player.nickname}: +${lastMove.score} ${t('pts')}${qwirkle}`);
     }
-
-    const timer = setTimeout(() => setLastMoveInfo(''), 4000);
-    return () => clearTimeout(timer);
   }, [gameState?.moves?.length]);
 
   if (!gameState || !playerId || !roomCode) {
