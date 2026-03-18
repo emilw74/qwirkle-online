@@ -14,31 +14,26 @@ export function PlayerHand({ hand, selectedTile, onSelectTile, isMyTurn, placedT
   const availableTiles = hand.filter(t => !placedTileIds.has(t.id));
 
   return (
-    <div className="flex flex-col items-center gap-3 p-4">
-      <div className="text-sm font-medium text-muted-foreground">
-        Twoje kafelki ({availableTiles.length})
-      </div>
-      <div className="flex gap-2 flex-wrap justify-center">
-        {availableTiles.map(tile => (
-          <TileView
-            key={tile.id}
-            tile={tile}
-            size={56}
-            selected={selectedTile?.id === tile.id}
-            onClick={() => onSelectTile(tile)}
-            disabled={!isMyTurn}
-            className={cn(
-              'hand-tile',
-              selectedTile?.id === tile.id && 'selected',
-            )}
-          />
-        ))}
-        {availableTiles.length === 0 && (
-          <div className="text-muted-foreground text-sm py-4">
-            Brak kafelków
-          </div>
-        )}
-      </div>
+    <div className="flex items-center gap-1.5 justify-center px-2 py-1.5">
+      {availableTiles.map(tile => (
+        <TileView
+          key={tile.id}
+          tile={tile}
+          size={44}
+          selected={selectedTile?.id === tile.id}
+          onClick={() => onSelectTile(tile)}
+          disabled={!isMyTurn}
+          className={cn(
+            'hand-tile',
+            selectedTile?.id === tile.id && 'selected',
+          )}
+        />
+      ))}
+      {availableTiles.length === 0 && (
+        <div className="text-muted-foreground text-xs py-1">
+          Brak kafelków
+        </div>
+      )}
     </div>
   );
 }

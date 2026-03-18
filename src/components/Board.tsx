@@ -101,36 +101,36 @@ export function Board({ board, onCellClick, selectedTile, placedThisTurn, isMyTu
   };
 
   return (
-    <div className="relative flex-1 overflow-hidden bg-muted/30 dark:bg-muted/10 rounded-xl border border-border/50">
+    <div className="relative flex-1 overflow-hidden bg-muted/30 dark:bg-muted/10 rounded-lg border border-border/50 h-full">
       {/* Zoom controls */}
-      <div className="absolute top-3 right-3 z-10 flex flex-col gap-1.5">
+      <div className="absolute top-1.5 right-1.5 z-10 flex flex-col gap-1">
         <button
           onClick={() => setZoom(z => Math.min(z + 0.2, 2))}
-          className="p-2 rounded-lg bg-card border border-border/50 shadow-sm hover:bg-accent/10 transition-colors"
+          className="p-1.5 rounded-md bg-card/90 border border-border/50 shadow-sm hover:bg-accent/10 transition-colors"
           data-testid="zoom-in"
         >
-          <ZoomIn size={16} />
+          <ZoomIn size={14} />
         </button>
         <button
           onClick={() => setZoom(z => Math.max(z - 0.2, 0.4))}
-          className="p-2 rounded-lg bg-card border border-border/50 shadow-sm hover:bg-accent/10 transition-colors"
+          className="p-1.5 rounded-md bg-card/90 border border-border/50 shadow-sm hover:bg-accent/10 transition-colors"
           data-testid="zoom-out"
         >
-          <ZoomOut size={16} />
+          <ZoomOut size={14} />
         </button>
         <button
           onClick={resetView}
-          className="p-2 rounded-lg bg-card border border-border/50 shadow-sm hover:bg-accent/10 transition-colors"
+          className="p-1.5 rounded-md bg-card/90 border border-border/50 shadow-sm hover:bg-accent/10 transition-colors"
           data-testid="center-view"
         >
-          <Crosshair size={16} />
+          <Crosshair size={14} />
         </button>
       </div>
 
       {/* Board container */}
       <div
         ref={containerRef}
-        className="w-full h-full min-h-[300px] select-none"
+        className="w-full h-full select-none"
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
@@ -149,12 +149,12 @@ export function Board({ board, onCellClick, selectedTile, placedThisTurn, isMyTu
           }}
         >
           <div
-            className="grid mx-auto my-8"
+            className="grid mx-auto"
             style={{
               gridTemplateColumns: `repeat(${maxCol - minCol + 1}, ${CELL_SIZE}px)`,
               gap: `${GAP}px`,
               width: 'fit-content',
-              margin: '2rem auto',
+              margin: '0.5rem auto',
             }}
           >
             {Array.from({ length: (maxRow - minRow + 1) * (maxCol - minCol + 1) }).map((_, idx) => {

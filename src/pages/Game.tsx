@@ -251,30 +251,28 @@ export function Game({ onNavigate }: GameProps) {
 
   return (
     <div className="flex flex-col h-[calc(100dvh-60px)] max-h-[calc(100dvh-60px)]">
-      {/* Top bar with scores */}
-      <div className="flex gap-3 p-3 overflow-x-auto">
-        <div className="flex-shrink-0 w-full max-w-xs">
-          <ScoreBoard
-            players={gameState.players}
-            currentPlayerIndex={gameState.currentPlayerIndex}
-            myPlayerId={playerId}
-            bagSize={(gameState.bag || []).length}
-          />
-        </div>
+      {/* Compact top bar: scores inline */}
+      <div className="flex-shrink-0 px-2 py-1.5">
+        <ScoreBoard
+          players={gameState.players}
+          currentPlayerIndex={gameState.currentPlayerIndex}
+          myPlayerId={playerId}
+          bagSize={(gameState.bag || []).length}
+        />
       </div>
 
-      {/* Move info / error */}
+      {/* Move info / error — minimal */}
       {(lastMoveInfo || error) && (
         <div className={cn(
-          'mx-3 px-3 py-2 rounded-lg text-sm text-center transition-all',
+          'mx-2 px-2 py-1 rounded-md text-xs text-center transition-all',
           error ? 'bg-destructive/10 text-destructive' : 'bg-primary/10 text-primary',
         )}>
           {error || lastMoveInfo}
         </div>
       )}
 
-      {/* Board */}
-      <div className="flex-1 px-3 min-h-0">
+      {/* Board — takes all remaining space */}
+      <div className="flex-1 px-1 min-h-0">
         <Board
           board={board}
           onCellClick={handleCellClick}
@@ -285,8 +283,8 @@ export function Game({ onNavigate }: GameProps) {
         />
       </div>
 
-      {/* Hand + Actions */}
-      <div className="flex-shrink-0 border-t border-border/50 bg-card/80 backdrop-blur-sm">
+      {/* Compact bottom: hand + actions in one strip */}
+      <div className="flex-shrink-0 border-t border-border/50 bg-card/80 backdrop-blur-sm px-2 pb-1 pt-1">
         <PlayerHand
           hand={myHand}
           selectedTile={selectedTile}
@@ -294,19 +292,17 @@ export function Game({ onNavigate }: GameProps) {
           isMyTurn={isMyTurn}
           placedTileIds={placedIds}
         />
-        <div className="px-3 pb-3">
-          <GameActions
-            isMyTurn={isMyTurn}
-            hasPlacedTiles={placedTilesThisTurn.length > 0}
-            canSwap={(gameState.bag || []).length > 0}
-            onConfirmMove={handleConfirmMove}
-            onUndoLast={handleUndoLast}
-            onClearAll={handleClearAll}
-            onSwap={handleSwap}
-            onPass={handlePass}
-            isLoading={isLoading}
-          />
-        </div>
+        <GameActions
+          isMyTurn={isMyTurn}
+          hasPlacedTiles={placedTilesThisTurn.length > 0}
+          canSwap={(gameState.bag || []).length > 0}
+          onConfirmMove={handleConfirmMove}
+          onUndoLast={handleUndoLast}
+          onClearAll={handleClearAll}
+          onSwap={handleSwap}
+          onPass={handlePass}
+          isLoading={isLoading}
+        />
       </div>
 
       {/* Swap dialog */}
