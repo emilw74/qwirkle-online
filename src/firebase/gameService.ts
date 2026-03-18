@@ -13,6 +13,27 @@ import {
 } from '../game/engine';
 import { getAIMove, shouldAISwap } from '../game/ai';
 
+// --- Firebase Data Sanitization ---
+// Firebase converts empty arrays/objects to null
+function sanitizeGameState(state: GameState): GameState {
+  return {
+    ...state,
+    board: state.board || {},
+    bag: state.bag || [],
+    moves: state.moves || [],
+    winner: state.winner ?? null,
+    players: (state.players || []).map(p => ({
+      ...p,
+      hand: p.hand || [],
+    })),
+  };
+}
+
+// Remove undefined values before writing to Firebase (Firebase rejects undefined)
+function stripUndefined<T>(obj: T): T {
+  return JSON.parse(JSON.stringify(obj));
+}
+
 // --- Room Management ---
 
 export async function createRoom(
@@ -23,7 +44,7 @@ export async function createRoom(
   const playerId = `player_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   const gameState = createGameState(roomCode, playerId, hostNickname, maxPlayers);
 
-  await set(ref(db, `rooms/${roomCode}`), gameState);
+  await set(ref(db, `rooms/${roomCode}`), stripUndefined(gameState));
   return { roomCode, playerId, gameState };
 }
 
@@ -46,7 +67,7 @@ export async function joinRoom(
   const playerId = `player_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   const updatedState = addPlayerToGame(gameState, playerId, nickname);
 
-  await set(ref(db, `rooms/${roomCode}`), updatedState);
+  await set(ref(db, `rooms/${roomCode}`), stripUndefined(updatedState));
   return { playerId, gameState: updatedState };
 }
 
@@ -60,7 +81,7 @@ export async function addAIToRoom(
   const gameState = snapshot.val() as GameState;
   const updatedState = addAIPlayer(gameState, level);
 
-  await set(ref(db, `rooms/${roomCode}`), updatedState);
+  await set(ref(db, `rooms/${roomCode}`), stripUndefined(updatedState));
   return updatedState;
 }
 
@@ -71,7 +92,7 @@ export async function startGameInRoom(roomCode: string): Promise<GameState> {
   const gameState = snapshot.val() as GameState;
   const updatedState = startGame(gameState);
 
-  await set(ref(db, `rooms/${roomCode}`), updatedState);
+  await set(ref(db, `rooms/${roomCode}`), stripUndefined(updatedState));
   return updatedState;
 }
 
@@ -85,18 +106,11 @@ export async function placeTiles(
   const snapshot = await get(ref(db, `rooms/${roomCode}`));
   if (!snapshot.exists()) throw new Error('Pokój nie istnieje');
 
-  const gameState = snapshot.val() as GameState;
-  // Restore hand arrays properly (Firebase may convert empty arrays to undefined)
-  gameState.players = gameState.players.map(p => ({
-    ...p,
-    hand: p.hand || [],
-  }));
-  gameState.bag = gameState.bag || [];
-  gameState.moves = gameState.moves || [];
+  const gameState = sanitizeGameState(snapshot.val() as GameState);
 
   const updatedState = applyMove(gameState, placedTiles, playerId);
 
-  await set(ref(db, `rooms/${roomCode}`), updatedState);
+  await set(ref(db, `rooms/${roomCode}`), stripUndefined(updatedState));
 
   // Save to history if game finished
   if (updatedState.phase === 'finished') {
@@ -115,14 +129,11 @@ export async function swapPlayerTiles(
   const snapshot = await get(ref(db, `rooms/${roomCode}`));
   if (!snapshot.exists()) throw new Error('Pokój nie istnieje');
 
-  const gameState = snapshot.val() as GameState;
-  gameState.players = gameState.players.map(p => ({ ...p, hand: p.hand || [] }));
-  gameState.bag = gameState.bag || [];
-  gameState.moves = gameState.moves || [];
+  const gameState = sanitizeGameState(snapshot.val() as GameState);
 
   const updatedState = swapTiles(gameState, tiles, playerId);
 
-  await set(ref(db, `rooms/${roomCode}`), updatedState);
+  await set(ref(db, `rooms/${roomCode}`), stripUndefined(updatedState));
   return updatedState;
 }
 
@@ -133,14 +144,11 @@ export async function passPlayerTurn(
   const snapshot = await get(ref(db, `rooms/${roomCode}`));
   if (!snapshot.exists()) throw new Error('Pokój nie istnieje');
 
-  const gameState = snapshot.val() as GameState;
-  gameState.players = gameState.players.map(p => ({ ...p, hand: p.hand || [] }));
-  gameState.bag = gameState.bag || [];
-  gameState.moves = gameState.moves || [];
+  const gameState = sanitizeGameState(snapshot.val() as GameState);
 
   const updatedState = passTurn(gameState, playerId);
 
-  await set(ref(db, `rooms/${roomCode}`), updatedState);
+  await set(ref(db, `rooms/${roomCode}`), stripUndefined(updatedState));
 
   if (updatedState.phase === 'finished') {
     await saveGameHistory(updatedState);
@@ -156,10 +164,7 @@ export async function executeAITurn(roomCode: string): Promise<GameState> {
   const snapshot = await get(ref(db, `rooms/${roomCode}`));
   if (!snapshot.exists()) throw new Error('Pokój nie istnieje');
 
-  const gameState = snapshot.val() as GameState;
-  gameState.players = gameState.players.map(p => ({ ...p, hand: p.hand || [] }));
-  gameState.bag = gameState.bag || [];
-  gameState.moves = gameState.moves || [];
+  const gameState = sanitizeGameState(snapshot.val() as GameState);
 
   const currentPlayer = gameState.players[gameState.currentPlayerIndex];
   if (!currentPlayer?.isAI) throw new Error('Nie tura AI');
@@ -196,6 +201,8 @@ export function subscribeToRoom(
       state.players = (state.players || []).map(p => ({ ...p, hand: p.hand || [] }));
       state.bag = state.bag || [];
       state.moves = state.moves || [];
+      state.board = state.board || {};
+      state.winner = state.winner ?? null;
       callback(state);
     } else {
       callback(null);

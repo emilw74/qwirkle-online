@@ -44,7 +44,8 @@ export function parseKey(key: string): Position {
   return { row, col };
 }
 
-export function boardFromRecord(rec: Record<string, Tile>): Board {
+export function boardFromRecord(rec: Record<string, Tile> | null | undefined): Board {
+  if (!rec) return new Map();
   return new Map(Object.entries(rec));
 }
 
