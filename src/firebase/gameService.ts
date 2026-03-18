@@ -1,7 +1,6 @@
 import { db } from './config';
 import {
-  ref, set, get, update, onValue, off, push, remove,
-  query, orderByChild, limitToLast, DataSnapshot
+  ref, set, get, update, onValue, off, push, remove, DataSnapshot
 } from 'firebase/database';
 import {
   GameState, Player, Tile, PlacedTile, GameMove,
@@ -294,33 +293,7 @@ async function saveGameHistory(gameState: GameState): Promise<void> {
   await push(ref(db, 'gameHistory'), entry);
 }
 
-export async function getGameHistory(limit: number = 50): Promise<GameHistoryEntry[]> {
-  const historyQuery = query(
-    ref(db, 'gameHistory'),
-    orderByChild('date'),
-    limitToLast(limit)
-  );
-  const snapshot = await get(historyQuery);
-  if (!snapshot.exists()) return [];
 
-  const data = snapshot.val();
-  const now = Date.now();
-  const entries: GameHistoryEntry[] = [];
-
-  // Also clean up entries deleted >7 days ago from Firebase
-  for (const [key, raw] of Object.entries(data) as [string, any][]) {
-    const entry = raw as GameHistoryEntry;
-    if (entry.deletedAt && now - entry.deletedAt > SEVEN_DAYS_MS) {
-      // Remove stale deleted entry from DB
-      remove(ref(db, `gameHistory/${key}`)).catch(() => {});
-      continue;
-    }
-    entries.push(entry);
-  }
-
-  entries.sort((a, b) => b.date - a.date);
-  return entries;
-}
 
 // --- Player Sessions (multi-game support, keyed by uid) ---
 

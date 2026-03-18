@@ -106,10 +106,6 @@ export const translations = {
     pl: 'Ranking',
     en: 'Ranking',
   },
-  history: {
-    pl: 'Historia',
-    en: 'History',
-  },
   rules: {
     pl: 'Zasady',
     en: 'Rules',
@@ -376,32 +372,6 @@ export const translations = {
   highest: {
     pl: 'najw.',
     en: 'best',
-  },
-
-  // ===== GameHistory =====
-  historyTitle: {
-    pl: 'Historia gier',
-    en: 'Game history',
-  },
-  noHistory: {
-    pl: 'Brak historii',
-    en: 'No history',
-  },
-  noHistoryHint: {
-    pl: 'Twoje gry pojawią się tutaj',
-    en: 'Your games will appear here',
-  },
-  room: {
-    pl: 'Pokój:',
-    en: 'Room:',
-  },
-  playersLabel: {
-    pl: 'graczy',
-    en: 'players',
-  },
-  moves: {
-    pl: 'ruchów',
-    en: 'moves',
   },
 
   // ===== Rules =====

@@ -8,7 +8,7 @@ import {
 } from '../firebase/gameService';
 import { cn } from '../utils/cn';
 import {
-  Users, Bot, Play, Plus, LogIn, Trophy, History, Copy, Check,
+  Users, Bot, Play, Plus, LogIn, Trophy, Copy, Check,
   ArrowLeft, Gamepad2, RefreshCw, ChevronRight, X, BookOpen, Info, Trash2,
 } from 'lucide-react';
 import { AILevel, GameState, Tile } from '../game/types';
@@ -18,7 +18,7 @@ import { useTranslation } from '../i18n/LanguageContext';
 import { LanguageToggle } from '../components/LanguageToggle';
 
 interface LobbyProps {
-  onNavigate: (page: 'game' | 'leaderboard' | 'history' | 'rules' | 'about') => void;
+  onNavigate: (page: 'game' | 'leaderboard' | 'rules' | 'about') => void;
 }
 
 // --- Mini Board for finished game detail ---
@@ -884,7 +884,7 @@ export function Lobby({ onNavigate }: LobbyProps) {
       </div>
 
       {/* Secondary actions */}
-      <div className="grid grid-cols-4 gap-2">
+      <div className="grid grid-cols-3 gap-2">
         <button
           onClick={() => onNavigate('leaderboard')}
           className="p-3 rounded-xl bg-card border border-border/50 hover:bg-muted/50 transition-all text-center shadow-sm"
@@ -892,14 +892,6 @@ export function Lobby({ onNavigate }: LobbyProps) {
         >
           <Trophy size={22} className="mx-auto mb-1.5 text-yellow-500" />
           <div className="text-xs font-medium">{t('ranking')}</div>
-        </button>
-        <button
-          onClick={() => onNavigate('history')}
-          className="p-3 rounded-xl bg-card border border-border/50 hover:bg-muted/50 transition-all text-center shadow-sm"
-          data-testid="game-history"
-        >
-          <History size={22} className="mx-auto mb-1.5 text-blue-500" />
-          <div className="text-xs font-medium">{t('history')}</div>
         </button>
         <button
           onClick={() => onNavigate('rules')}

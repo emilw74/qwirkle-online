@@ -16,7 +16,7 @@ import { ArrowLeft, Trophy, MessageCircle } from 'lucide-react';
 import { useTranslation } from '../i18n/LanguageContext';
 
 interface GameProps {
-  onNavigate: (page: 'lobby' | 'leaderboard' | 'history') => void;
+  onNavigate: (page: 'lobby' | 'leaderboard') => void;
 }
 
 export function Game({ onNavigate }: GameProps) {

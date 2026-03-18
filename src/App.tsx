@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { Lobby } from './pages/Lobby';
 import { Game } from './pages/Game';
 import { Leaderboard } from './pages/Leaderboard';
-import { GameHistory } from './pages/GameHistory';
 import { Rules } from './pages/Rules';
 import { About } from './pages/About';
 import { AuthGate } from './components/AuthGate';
@@ -14,7 +13,7 @@ import { UserProfile, updateNickname } from './firebase/authService';
 import { LanguageProvider, useTranslation } from './i18n/LanguageContext';
 import { LanguageToggle } from './components/LanguageToggle';
 
-type Page = 'lobby' | 'game' | 'leaderboard' | 'history' | 'rules' | 'about';
+type Page = 'lobby' | 'game' | 'leaderboard' | 'rules' | 'about';
 
 function AppContent({ profile }: { profile: UserProfile }) {
   const { t } = useTranslation();
@@ -216,9 +215,6 @@ function AppContent({ profile }: { profile: UserProfile }) {
           )}
           {page === 'leaderboard' && (
             <Leaderboard onBack={() => setPage('lobby')} />
-          )}
-          {page === 'history' && (
-            <GameHistory onBack={() => setPage('lobby')} />
           )}
           {page === 'rules' && (
             <Rules onBack={() => setPage('lobby')} />
