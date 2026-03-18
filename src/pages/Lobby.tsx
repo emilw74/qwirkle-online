@@ -470,6 +470,9 @@ export function Lobby({ onNavigate }: LobbyProps) {
                                 )}>
                                   {gameState.phase === 'waiting' ? t('waiting') : isMyTurn ? t('yourTurn') : t('waitTurn')}
                                 </span>
+                                {gameState.phase === 'waiting' && (
+                                  <span className="text-xs font-mono font-bold tracking-wider text-primary">{session.roomCode}</span>
+                                )}
                                 {myPlayer && gameState.phase === 'playing' && (
                                   <span className="text-xs text-muted-foreground">{myPlayer.score} {t('pts')}</span>
                                 )}
