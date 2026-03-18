@@ -31,6 +31,7 @@ export function Game({ onNavigate }: GameProps) {
   const [lastMoveInfo, setLastMoveInfo] = useState('');
   const [showSwapDialog, setShowSwapDialog] = useState(false);
   const [swapSelection, setSwapSelection] = useState<Set<string>>(new Set());
+  const [showLastMove, setShowLastMove] = useState(false);
   const aiTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const aiProcessingRef = useRef(false);
 
@@ -104,6 +105,23 @@ export function Game({ onNavigate }: GameProps) {
   const board = gameState.board || {};
   const placedIds = new Set(placedTilesThisTurn.map(t => t.id));
 
+  // Get the last non-swap move's tile positions for highlighting
+  const lastMovePositions: Set<string> = new Set();
+  if (showLastMove && gameState.moves?.length) {
+    // Find the most recent move that placed tiles (not a swap/pass)
+    for (let i = gameState.moves.length - 1; i >= 0; i--) {
+      const m = gameState.moves[i];
+      if (!m.isSwap && m.tiles?.length > 0) {
+        for (const t of m.tiles) {
+          lastMovePositions.add(`${t.position.row},${t.position.col}`);
+        }
+        break;
+      }
+    }
+  }
+
+  const handleToggleLastMove = () => setShowLastMove(prev => !prev);
+
   const handleSelectTile = (tile: Tile) => {
     if (!isMyTurn) return;
     setSelectedTile(prev => prev?.id === tile.id ? null : tile);
@@ -121,6 +139,7 @@ export function Game({ onNavigate }: GameProps) {
 
     placeTileOnBoard(selectedTile, position);
     setSelectedTile(null);
+    setShowLastMove(false);
     setError('');
   };
 
@@ -280,6 +299,7 @@ export function Game({ onNavigate }: GameProps) {
           placedThisTurn={placedTilesThisTurn}
           isMyTurn={isMyTurn}
           myHand={myHand.filter(t => !placedIds.has(t.id))}
+          highlightedPositions={lastMovePositions}
         />
       </div>
 
@@ -302,6 +322,9 @@ export function Game({ onNavigate }: GameProps) {
           onSwap={handleSwap}
           onPass={handlePass}
           isLoading={isLoading}
+          showLastMove={showLastMove}
+          onToggleLastMove={handleToggleLastMove}
+          hasLastMove={(gameState.moves || []).some(m => !m.isSwap && m.tiles?.length > 0)}
         />
       </div>
 

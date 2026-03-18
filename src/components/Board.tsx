@@ -13,9 +13,10 @@ interface BoardProps {
   placedThisTurn: PlacedTile[];
   isMyTurn: boolean;
   myHand: Tile[];
+  highlightedPositions?: Set<string>;
 }
 
-export function Board({ board, onCellClick, selectedTile, placedThisTurn, isMyTurn, myHand }: BoardProps) {
+export function Board({ board, onCellClick, selectedTile, placedThisTurn, isMyTurn, myHand, highlightedPositions }: BoardProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(1);
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
@@ -172,6 +173,7 @@ export function Board({ board, onCellClick, selectedTile, placedThisTurn, isMyTu
               const tile = boardTile || placedTile;
               const isValid = validPositions.has(key);
               const isPlacedThisTurn = !!placedTile;
+              const isHighlighted = highlightedPositions?.has(key);
 
               if (tile) {
                 return (
@@ -181,6 +183,7 @@ export function Board({ board, onCellClick, selectedTile, placedThisTurn, isMyTu
                       size={CELL_SIZE}
                       className={cn(
                         isPlacedThisTurn && 'ring-2 ring-accent ring-offset-1 ring-offset-background',
+                        isHighlighted && 'ring-2 ring-yellow-500 ring-offset-1 ring-offset-background animate-pulse',
                       )}
                     />
                   </div>

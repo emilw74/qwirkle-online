@@ -1,5 +1,5 @@
 import { cn } from '../utils/cn';
-import { Check, Undo2, Shuffle, SkipForward, Trash2 } from 'lucide-react';
+import { Check, Undo2, Shuffle, SkipForward, Trash2, Eye, EyeOff } from 'lucide-react';
 
 interface GameActionsProps {
   isMyTurn: boolean;
@@ -11,11 +11,15 @@ interface GameActionsProps {
   onSwap: () => void;
   onPass: () => void;
   isLoading: boolean;
+  showLastMove: boolean;
+  onToggleLastMove: () => void;
+  hasLastMove: boolean;
 }
 
 export function GameActions({
   isMyTurn, hasPlacedTiles, canSwap,
   onConfirmMove, onUndoLast, onClearAll, onSwap, onPass, isLoading,
+  showLastMove, onToggleLastMove, hasLastMove,
 }: GameActionsProps) {
   return (
     <div className="flex items-center gap-1.5 justify-center">
@@ -53,6 +57,21 @@ export function GameActions({
         </>
       ) : (
         <>
+          {hasLastMove && (
+            <button
+              onClick={onToggleLastMove}
+              className={cn(
+                'flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs border transition-colors',
+                showLastMove
+                  ? 'bg-yellow-500/15 border-yellow-500/40 text-yellow-700 dark:text-yellow-400'
+                  : 'border-border hover:bg-muted',
+              )}
+              data-testid="show-last-move"
+            >
+              {showLastMove ? <EyeOff size={13} /> : <Eye size={13} />}
+              {showLastMove ? 'Ukryj' : 'Ostatni ruch'}
+            </button>
+          )}
           {isMyTurn ? (
             <>
               {canSwap && (
