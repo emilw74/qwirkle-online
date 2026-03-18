@@ -3,13 +3,13 @@ import { useGameStore } from '../hooks/useGameStore';
 import {
   createRoom, joinRoom, addAIToRoom, startGameInRoom, subscribeToRoom,
   savePlayerSession, updateSessionGameName, getGamesForPlayer,
-  removePlayerSession,
+  removePlayerSession, deleteGame,
   PlayerSession, PlayerGames,
 } from '../firebase/gameService';
 import { cn } from '../utils/cn';
 import {
   Users, Bot, Play, Plus, LogIn, Trophy, History, Copy, Check,
-  ArrowLeft, Gamepad2, RefreshCw, ChevronRight, X, BookOpen, Info,
+  ArrowLeft, Gamepad2, RefreshCw, ChevronRight, X, BookOpen, Info, Trash2,
 } from 'lucide-react';
 import { AILevel, GameState, Tile } from '../game/types';
 import { TileView } from '../components/TileView';
@@ -157,6 +157,10 @@ export function Lobby({ onNavigate }: LobbyProps) {
   const [loadingGames, setLoadingGames] = useState(false);
   const [selectedFinished, setSelectedFinished] = useState<PlayerSession | null>(null);
 
+  // Delete game state
+  const [deleteConfirm, setDeleteConfirm] = useState<{ roomCode: string; gameName: string } | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
   const currentNick = nickname || t('defaultPlayer');
   const currentUid = uid || '';
 
@@ -184,7 +188,7 @@ export function Lobby({ onNavigate }: LobbyProps) {
       setRoomInfo({ code: roomCode, players: [currentNick] });
       setMode('waiting');
 
-      await savePlayerSession(currentUid, roomCode, playerId, gameState.players);
+      await savePlayerSession(currentUid, roomCode, playerId, gameState.players, currentUid);
 
       const unsub = subscribeToRoom(roomCode, (state) => {
         if (state) {
@@ -219,7 +223,7 @@ export function Lobby({ onNavigate }: LobbyProps) {
       setMode('waiting');
       setRoomInfo({ code: joinCode, players: gameState.players.map(p => p.nickname) });
 
-      await savePlayerSession(currentUid, joinCode, playerId, gameState.players);
+      await savePlayerSession(currentUid, joinCode, playerId, gameState.players, gameState.hostId);
 
       const unsub = subscribeToRoom(joinCode, (state) => {
         if (state) {
@@ -276,6 +280,33 @@ export function Lobby({ onNavigate }: LobbyProps) {
     }
   };
 
+  const handleDeleteGame = async () => {
+    if (!deleteConfirm) return;
+    setDeleting(true);
+    try {
+      await deleteGame(deleteConfirm.roomCode, currentNick);
+      // Update local state — mark sessions as deleted
+      const now = Date.now();
+      setPlayerGames(prev => ({
+        active: prev.active.filter(a => a.session.roomCode !== deleteConfirm.roomCode),
+        finished: prev.finished.map(s =>
+          s.roomCode === deleteConfirm.roomCode
+            ? { ...s, deletedAt: now, deletedBy: currentNick }
+            : s
+        ).concat(
+          // Move any active session that was deleted to finished
+          prev.active
+            .filter(a => a.session.roomCode === deleteConfirm.roomCode)
+            .map(a => ({ ...a.session, status: 'finished' as const, deletedAt: now, deletedBy: currentNick }))
+        ),
+      }));
+      setDeleteConfirm(null);
+    } catch (e) {
+      console.error('Error deleting game:', e);
+    }
+    setDeleting(false);
+  };
+
   const handleAddAI = async (level: AILevel) => {
     if (!roomInfo) return;
     setIsLoading(true);
@@ -322,6 +353,39 @@ export function Lobby({ onNavigate }: LobbyProps) {
 
   // --- RENDER ---
 
+  // Delete confirmation modal
+  const deleteModal = deleteConfirm && (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="bg-card rounded-2xl border border-border p-5 max-w-sm w-full shadow-xl space-y-4">
+        <h3 className="font-display font-bold text-lg">{t('deleteGameConfirmTitle')}</h3>
+        <p className="text-sm text-muted-foreground">
+          <strong className="text-foreground">{deleteConfirm.gameName}</strong>
+        </p>
+        <p className="text-sm text-muted-foreground">{t('deleteGameConfirmMsg')}</p>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setDeleteConfirm(null)}
+            disabled={deleting}
+            className="flex-1 py-2.5 rounded-lg border border-border text-sm font-medium hover:bg-muted transition-colors disabled:opacity-50"
+          >
+            {t('cancel')}
+          </button>
+          <button
+            onClick={handleDeleteGame}
+            disabled={deleting}
+            className="flex-1 py-2.5 rounded-lg bg-destructive text-destructive-foreground text-sm font-medium hover:opacity-90 transition-all disabled:opacity-50 flex items-center justify-center gap-1.5"
+          >
+            {deleting ? (
+              <div className="w-4 h-4 border-2 border-destructive-foreground/30 border-t-destructive-foreground rounded-full animate-spin" />
+            ) : (
+              <><Trash2 size={14} />{t('deleteGameConfirm')}</>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
   // Finished game detail modal
   const finishedModal = selectedFinished && (
     <FinishedGameDetail
@@ -336,6 +400,7 @@ export function Lobby({ onNavigate }: LobbyProps) {
     return (
       <div className="max-w-md mx-auto space-y-6">
         {finishedModal}
+        {deleteModal}
         <button onClick={handleBack} className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors text-sm">
           <ArrowLeft size={16} /> {t('back')}
         </button>
@@ -368,41 +433,53 @@ export function Lobby({ onNavigate }: LobbyProps) {
                   {active.map(({ session, gameState }) => {
                     const isMyTurn = gameState.players[gameState.currentPlayerIndex]?.id === session.playerId;
                     const myPlayer = gameState.players.find(p => p.id === session.playerId);
+                    const isHost = gameState.hostId === currentUid;
                     return (
-                      <button
-                        key={session.roomCode}
-                        onClick={() => handleRejoinGame(session)}
-                        disabled={isLoading}
-                        className={cn(
-                          'w-full p-3.5 rounded-xl border text-left transition-all hover:shadow-md',
-                          isMyTurn
-                            ? 'border-primary/50 bg-primary/5 hover:bg-primary/10'
-                            : 'border-border/50 bg-card hover:bg-muted/50',
-                        )}
-                        data-testid={`rejoin-${session.roomCode}`}
-                      >
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="flex-1 min-w-0">
-                            <div className="font-semibold text-sm truncate">{session.gameName}</div>
-                            <div className="flex items-center gap-2 mt-1">
-                              <span className={cn(
-                                'text-xs px-2 py-0.5 rounded-full font-medium',
-                                gameState.phase === 'waiting'
-                                  ? 'bg-yellow-500/15 text-yellow-700 dark:text-yellow-400'
-                                  : isMyTurn
-                                    ? 'bg-green-500/15 text-green-700 dark:text-green-400'
-                                    : 'bg-muted text-muted-foreground',
-                              )}>
-                                {gameState.phase === 'waiting' ? t('waiting') : isMyTurn ? t('yourTurn') : t('waitTurn')}
-                              </span>
-                              {myPlayer && gameState.phase === 'playing' && (
-                                <span className="text-xs text-muted-foreground">{myPlayer.score} {t('pts')}</span>
-                              )}
+                      <div key={session.roomCode} className="rounded-xl border border-border/50 overflow-hidden">
+                        <button
+                          onClick={() => handleRejoinGame(session)}
+                          disabled={isLoading}
+                          className={cn(
+                            'w-full p-3.5 text-left transition-all hover:shadow-md',
+                            isMyTurn
+                              ? 'bg-primary/5 hover:bg-primary/10'
+                              : 'bg-card hover:bg-muted/50',
+                          )}
+                          data-testid={`rejoin-${session.roomCode}`}
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="flex-1 min-w-0">
+                              <div className="font-semibold text-sm truncate">{session.gameName}</div>
+                              <div className="flex items-center gap-2 mt-1">
+                                <span className={cn(
+                                  'text-xs px-2 py-0.5 rounded-full font-medium',
+                                  gameState.phase === 'waiting'
+                                    ? 'bg-yellow-500/15 text-yellow-700 dark:text-yellow-400'
+                                    : isMyTurn
+                                      ? 'bg-green-500/15 text-green-700 dark:text-green-400'
+                                      : 'bg-muted text-muted-foreground',
+                                )}>
+                                  {gameState.phase === 'waiting' ? t('waiting') : isMyTurn ? t('yourTurn') : t('waitTurn')}
+                                </span>
+                                {myPlayer && gameState.phase === 'playing' && (
+                                  <span className="text-xs text-muted-foreground">{myPlayer.score} {t('pts')}</span>
+                                )}
+                              </div>
                             </div>
+                            <ChevronRight size={16} className="text-muted-foreground flex-shrink-0" />
                           </div>
-                          <ChevronRight size={16} className="text-muted-foreground flex-shrink-0" />
-                        </div>
-                      </button>
+                        </button>
+                        {isHost && (
+                          <div className="border-t border-border/30 px-3.5 py-1.5 flex justify-end">
+                            <button
+                              onClick={() => setDeleteConfirm({ roomCode: session.roomCode, gameName: session.gameName })}
+                              className="text-xs text-muted-foreground hover:text-destructive transition-colors flex items-center gap-1"
+                            >
+                              <Trash2 size={11} /> {t('deleteGame')}
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     );
                   })}
                 </div>
@@ -415,8 +492,16 @@ export function Lobby({ onNavigate }: LobbyProps) {
                     {t('finished')} ({finished.length})
                   </div>
                   {finished.map(session => {
+                    const isDeleted = !!session.deletedAt;
+                    const isHost = session.hostId === currentUid;
                     const finishedDate = session.finishedAt
                       ? new Date(session.finishedAt).toLocaleString(lang === 'pl' ? 'pl-PL' : 'en-GB', {
+                          day: '2-digit', month: '2-digit', year: 'numeric',
+                          hour: '2-digit', minute: '2-digit',
+                        })
+                      : '';
+                    const deletedDate = session.deletedAt
+                      ? new Date(session.deletedAt).toLocaleString(lang === 'pl' ? 'pl-PL' : 'en-GB', {
                           day: '2-digit', month: '2-digit', year: 'numeric',
                           hour: '2-digit', minute: '2-digit',
                         })
@@ -426,45 +511,85 @@ export function Lobby({ onNavigate }: LobbyProps) {
                     return (
                       <div
                         key={session.roomCode}
-                        className="rounded-xl border border-border/50 bg-muted/20 overflow-hidden"
+                        className={cn(
+                          'rounded-xl border overflow-hidden',
+                          isDeleted
+                            ? 'border-border/30 bg-muted/10 opacity-60'
+                            : 'border-border/50 bg-muted/20',
+                        )}
                       >
-                        <button
-                          onClick={() => setSelectedFinished(session)}
-                          className="w-full p-3.5 text-left transition-all hover:bg-muted/40"
-                          data-testid={`finished-${session.roomCode}`}
-                        >
-                          <div className="flex items-center justify-between gap-3">
-                            <div className="flex-1 min-w-0">
-                              <div className="font-semibold text-sm truncate">{session.gameName}</div>
-                              <div className="flex items-center gap-2 mt-1 flex-wrap">
-                                <span className="text-xs text-muted-foreground">{finishedDate}</span>
-                                {session.winner && (
-                                  <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-500/15 text-yellow-700 dark:text-yellow-400 font-medium">
-                                    🏆 {session.winner}
-                                  </span>
-                                )}
+                        {isDeleted ? (
+                          /* Deleted game — greyed out, no click */
+                          <div className="p-3.5">
+                            <div className="flex items-center gap-2 mb-1">
+                              <Trash2 size={13} className="text-muted-foreground/60 flex-shrink-0" />
+                              <div className="font-semibold text-sm truncate line-through text-muted-foreground">
+                                {session.gameName}
                               </div>
+                            </div>
+                            <div className="text-xs text-muted-foreground/70 space-y-0.5 pl-5">
+                              <div>{t('gameDeletedBy')} {session.deletedBy} {t('gameDeletedOn')} {deletedDate}</div>
                               {sorted.length > 0 && (
-                                <div className="flex items-center gap-3 mt-1.5">
+                                <div className="flex items-center gap-3 mt-1">
                                   {sorted.map(p => (
-                                    <span key={p.nickname} className="text-xs text-muted-foreground">
-                                      {p.nickname}: <strong className="text-foreground">{p.score}</strong>
+                                    <span key={p.nickname}>
+                                      {p.nickname}: {p.score}
                                     </span>
                                   ))}
                                 </div>
                               )}
                             </div>
-                            <ChevronRight size={16} className="text-muted-foreground flex-shrink-0" />
                           </div>
-                        </button>
-                        <div className="border-t border-border/30 px-3.5 py-1.5 flex justify-end">
-                          <button
-                            onClick={() => handleDeleteFinished(session)}
-                            className="text-xs text-muted-foreground hover:text-destructive transition-colors"
-                          >
-                            {t('remove')}
-                          </button>
-                        </div>
+                        ) : (
+                          /* Normal finished game */
+                          <>
+                            <button
+                              onClick={() => setSelectedFinished(session)}
+                              className="w-full p-3.5 text-left transition-all hover:bg-muted/40"
+                              data-testid={`finished-${session.roomCode}`}
+                            >
+                              <div className="flex items-center justify-between gap-3">
+                                <div className="flex-1 min-w-0">
+                                  <div className="font-semibold text-sm truncate">{session.gameName}</div>
+                                  <div className="flex items-center gap-2 mt-1 flex-wrap">
+                                    <span className="text-xs text-muted-foreground">{finishedDate}</span>
+                                    {session.winner && (
+                                      <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-500/15 text-yellow-700 dark:text-yellow-400 font-medium">
+                                        🏆 {session.winner}
+                                      </span>
+                                    )}
+                                  </div>
+                                  {sorted.length > 0 && (
+                                    <div className="flex items-center gap-3 mt-1.5">
+                                      {sorted.map(p => (
+                                        <span key={p.nickname} className="text-xs text-muted-foreground">
+                                          {p.nickname}: <strong className="text-foreground">{p.score}</strong>
+                                        </span>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                                <ChevronRight size={16} className="text-muted-foreground flex-shrink-0" />
+                              </div>
+                            </button>
+                            <div className="border-t border-border/30 px-3.5 py-1.5 flex justify-end gap-3">
+                              {isHost && (
+                                <button
+                                  onClick={() => setDeleteConfirm({ roomCode: session.roomCode, gameName: session.gameName })}
+                                  className="text-xs text-muted-foreground hover:text-destructive transition-colors flex items-center gap-1"
+                                >
+                                  <Trash2 size={11} /> {t('deleteGame')}
+                                </button>
+                              )}
+                              <button
+                                onClick={() => handleDeleteFinished(session)}
+                                className="text-xs text-muted-foreground hover:text-destructive transition-colors"
+                              >
+                                {t('remove')}
+                              </button>
+                            </div>
+                          </>
+                        )}
                       </div>
                     );
                   })}

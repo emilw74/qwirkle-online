@@ -435,6 +435,36 @@ export const translations = {
     pl: 'Qwirkle jest znakiem towarowym MindWare. Ta aplikacja jest niezależnym projektem hobbystycznym i nie jest powiązana z MindWare.',
     en: 'Qwirkle is a trademark of MindWare. This app is an independent hobby project and is not affiliated with MindWare.',
   },
+
+  // ===== Game deletion =====
+  deleteGame: {
+    pl: 'Usuń grę',
+    en: 'Delete game',
+  },
+  deleteGameConfirmTitle: {
+    pl: 'Usunąć grę?',
+    en: 'Delete game?',
+  },
+  deleteGameConfirmMsg: {
+    pl: 'Ta gra zostanie oznaczona jako usunięta dla wszystkich graczy i zniknie z historii po 7 dniach.',
+    en: 'This game will be marked as deleted for all players and will disappear from history after 7 days.',
+  },
+  deleteGameConfirm: {
+    pl: 'Usuń',
+    en: 'Delete',
+  },
+  gameDeletedBy: {
+    pl: 'Usunięta przez',
+    en: 'Deleted by',
+  },
+  gameDeletedOn: {
+    pl: 'dnia',
+    en: 'on',
+  },
+  gameDeleted: {
+    pl: 'Gra usunięta',
+    en: 'Game deleted',
+  },
 } as const;
 
 export type TranslationKey = keyof typeof translations;

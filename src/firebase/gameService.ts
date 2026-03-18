@@ -304,7 +304,20 @@ export async function getGameHistory(limit: number = 50): Promise<GameHistoryEnt
   if (!snapshot.exists()) return [];
 
   const data = snapshot.val();
-  const entries: GameHistoryEntry[] = Object.values(data);
+  const now = Date.now();
+  const entries: GameHistoryEntry[] = [];
+
+  // Also clean up entries deleted >7 days ago from Firebase
+  for (const [key, raw] of Object.entries(data) as [string, any][]) {
+    const entry = raw as GameHistoryEntry;
+    if (entry.deletedAt && now - entry.deletedAt > SEVEN_DAYS_MS) {
+      // Remove stale deleted entry from DB
+      remove(ref(db, `gameHistory/${key}`)).catch(() => {});
+      continue;
+    }
+    entries.push(entry);
+  }
+
   entries.sort((a, b) => b.date - a.date);
   return entries;
 }
@@ -321,6 +334,10 @@ export interface PlayerSession {
   finalBoard?: Record<string, Tile>;
   finalPlayers?: { nickname: string; score: number; isAI?: boolean }[];
   winner?: string;
+  hostId?: string; // uid of the game creator
+  // Deletion metadata
+  deletedAt?: number;
+  deletedBy?: string; // nickname of the user who deleted
 }
 
 function generateGameName(players: { nickname: string; isAI?: boolean; aiLevel?: string }[]): string {
@@ -339,7 +356,8 @@ export async function savePlayerSession(
   uid: string,
   roomCode: string,
   playerId: string,
-  players: { nickname: string; isAI?: boolean; aiLevel?: string }[]
+  players: { nickname: string; isAI?: boolean; aiLevel?: string }[],
+  hostId?: string
 ): Promise<void> {
   const session: PlayerSession = {
     roomCode,
@@ -347,6 +365,7 @@ export async function savePlayerSession(
     gameName: generateGameName(players),
     joinedAt: Date.now(),
     status: 'active',
+    hostId,
   };
   await set(ref(db, `playerSessions/${uid}/${roomCode}`), stripUndefined(session));
 }
@@ -400,14 +419,29 @@ export interface PlayerGames {
   finished: PlayerSession[];
 }
 
+const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+
 export async function getGamesForPlayer(
   uid: string
 ): Promise<PlayerGames> {
   const sessions = await getPlayerSessions(uid);
   const active: { session: PlayerSession; gameState: GameState }[] = [];
   const finished: PlayerSession[] = [];
+  const now = Date.now();
 
   for (const session of sessions) {
+    // Auto-remove sessions deleted more than 7 days ago
+    if (session.deletedAt && now - session.deletedAt > SEVEN_DAYS_MS) {
+      await removePlayerSession(uid, session.roomCode).catch(() => {});
+      continue;
+    }
+
+    // Deleted sessions go to finished list (shown greyed out)
+    if (session.deletedAt) {
+      finished.push(session);
+      continue;
+    }
+
     if (session.status === 'finished') {
       finished.push(session);
       continue;
@@ -448,4 +482,46 @@ export async function deleteRoom(roomCode: string): Promise<void> {
 export async function checkRoomExists(roomCode: string): Promise<boolean> {
   const snapshot = await get(ref(db, `rooms/${roomCode}`));
   return snapshot.exists();
+}
+
+// --- Delete game (by host) ---
+// Marks game as deleted in history and all player sessions, removes the room
+
+export async function deleteGame(
+  roomCode: string,
+  deletedByNickname: string
+): Promise<void> {
+  const now = Date.now();
+
+  // 1. Remove the room itself
+  await remove(ref(db, `rooms/${roomCode}`)).catch(() => {});
+
+  // 2. Mark game as deleted in gameHistory
+  const historySnapshot = await get(ref(db, 'gameHistory'));
+  if (historySnapshot.exists()) {
+    const data = historySnapshot.val() as Record<string, any>;
+    for (const [key, entry] of Object.entries(data)) {
+      if (entry.roomCode === roomCode) {
+        await update(ref(db, `gameHistory/${key}`), {
+          deletedAt: now,
+          deletedBy: deletedByNickname,
+        });
+      }
+    }
+  }
+
+  // 3. Mark as deleted in all player sessions that reference this room
+  const sessionsSnapshot = await get(ref(db, 'playerSessions'));
+  if (sessionsSnapshot.exists()) {
+    const allSessions = sessionsSnapshot.val() as Record<string, Record<string, any>>;
+    for (const [uid, rooms] of Object.entries(allSessions)) {
+      if (rooms[roomCode]) {
+        await update(ref(db, `playerSessions/${uid}/${roomCode}`), {
+          status: 'finished',
+          deletedAt: now,
+          deletedBy: deletedByNickname,
+        });
+      }
+    }
+  }
 }

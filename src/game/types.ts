@@ -80,6 +80,9 @@ export interface GameHistoryEntry {
   date: number;
   totalMoves: number;
   hadQwirkle: boolean;
+  // Deletion metadata
+  deletedAt?: number;
+  deletedBy?: string; // nickname of the user who deleted
 }
 
 export const TILE_COLORS: TileColor[] = ['red', 'orange', 'yellow', 'green', 'blue', 'purple'];
