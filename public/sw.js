@@ -1,4 +1,4 @@
-const CACHE_NAME = 'qwirkle-v1';
+const CACHE_NAME = 'qwirkle-v3';
 const urlsToCache = [
   '/',
   '/index.html',
@@ -38,18 +38,35 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  event.respondWith(
-    caches.match(event.request)
-      .then((response) => {
-        if (response) return response;
-        return fetch(event.request).then((response) => {
-          if (!response || response.status !== 200) return response;
-          const responseToCache = response.clone();
-          caches.open(CACHE_NAME)
-            .then((cache) => cache.put(event.request, responseToCache));
-          return response;
-        });
-      })
-      .catch(() => caches.match('/index.html'))
-  );
+  // Network-first for HTML and JS/CSS, cache-first for images/fonts
+  const url = new URL(event.request.url);
+  const isAsset = url.pathname.match(/\.(png|jpg|svg|woff2?|ttf|ico)$/);
+
+  if (isAsset) {
+    // Cache-first for static assets
+    event.respondWith(
+      caches.match(event.request)
+        .then((response) => response || fetch(event.request).then((resp) => {
+          if (resp && resp.status === 200) {
+            const clone = resp.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          }
+          return resp;
+        }))
+        .catch(() => caches.match('/index.html'))
+    );
+  } else {
+    // Network-first for HTML, JS, CSS (always get fresh code)
+    event.respondWith(
+      fetch(event.request)
+        .then((resp) => {
+          if (resp && resp.status === 200) {
+            const clone = resp.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          }
+          return resp;
+        })
+        .catch(() => caches.match(event.request).then((r) => r || caches.match('/index.html')))
+    );
+  }
 });
