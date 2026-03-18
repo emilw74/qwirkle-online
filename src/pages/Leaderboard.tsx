@@ -3,12 +3,14 @@ import { getLeaderboard } from '../firebase/gameService';
 import { LeaderboardEntry } from '../game/types';
 import { cn } from '../utils/cn';
 import { ArrowLeft, Trophy, Medal, Flame, Target } from 'lucide-react';
+import { useTranslation } from '../i18n/LanguageContext';
 
 interface LeaderboardProps {
   onBack: () => void;
 }
 
 export function Leaderboard({ onBack }: LeaderboardProps) {
+  const { t } = useTranslation();
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -29,12 +31,12 @@ export function Leaderboard({ onBack }: LeaderboardProps) {
   return (
     <div className="max-w-lg mx-auto space-y-6">
       <button onClick={onBack} className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors text-sm">
-        <ArrowLeft size={16} /> Wróć
+        <ArrowLeft size={16} /> {t('back')}
       </button>
 
       <div className="text-center space-y-2">
         <Trophy size={40} className="mx-auto text-yellow-500" />
-        <h2 className="font-display font-bold text-xl">Ranking graczy</h2>
+        <h2 className="font-display font-bold text-xl">{t('leaderboardTitle')}</h2>
       </div>
 
       {isLoading ? (
@@ -46,8 +48,8 @@ export function Leaderboard({ onBack }: LeaderboardProps) {
       ) : entries.length === 0 ? (
         <div className="text-center py-12 text-muted-foreground">
           <Target size={48} className="mx-auto mb-3 opacity-50" />
-          <p className="text-sm">Brak wyników</p>
-          <p className="text-xs mt-1">Zagraj pierwszą grę, aby pojawić się w rankingu</p>
+          <p className="text-sm">{t('noResults')}</p>
+          <p className="text-xs mt-1">{t('noResultsHint')}</p>
         </div>
       ) : (
         <div className="space-y-2">
@@ -75,8 +77,8 @@ export function Leaderboard({ onBack }: LeaderboardProps) {
               <div className="flex-1 min-w-0">
                 <div className="font-medium text-sm truncate">{entry.nickname}</div>
                 <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                  <span>{entry.gamesPlayed} gier</span>
-                  <span>{entry.gamesWon} wygranych</span>
+                  <span>{entry.gamesPlayed} {t('gamesPlayed')}</span>
+                  <span>{entry.gamesWon} {t('gamesWon')}</span>
                   {entry.totalQwirkles > 0 && (
                     <span className="flex items-center gap-0.5 text-primary">
                       <Flame size={12} /> {entry.totalQwirkles}
@@ -87,7 +89,7 @@ export function Leaderboard({ onBack }: LeaderboardProps) {
 
               <div className="text-right flex-shrink-0">
                 <div className="font-display font-bold text-lg">{entry.highestScore}</div>
-                <div className="text-xs text-muted-foreground">najw.</div>
+                <div className="text-xs text-muted-foreground">{t('highest')}</div>
               </div>
             </div>
           ))}

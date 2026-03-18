@@ -1,6 +1,7 @@
 import { Player } from '../game/types';
 import { cn } from '../utils/cn';
 import { Crown, Bot, User } from 'lucide-react';
+import { useTranslation } from '../i18n/LanguageContext';
 
 interface ScoreBoardProps {
   players: Player[];
@@ -10,6 +11,8 @@ interface ScoreBoardProps {
 }
 
 export function ScoreBoard({ players, currentPlayerIndex, myPlayerId, bagSize }: ScoreBoardProps) {
+  const { t } = useTranslation();
+
   return (
     <div className="flex items-center gap-2 w-full">
       {players.map((player, idx) => {
@@ -40,7 +43,7 @@ export function ScoreBoard({ players, currentPlayerIndex, myPlayerId, bagSize }:
                 isMe && 'text-accent',
               )}>
                 {player.nickname}
-                {isMe && ' (Ty)'}
+                {isMe && ` (${t('you')})`}
               </span>
               {isLeading && <Crown size={10} className="inline ml-0.5 text-yellow-500" />}
               {isCurrentTurn && (

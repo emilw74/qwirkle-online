@@ -1,5 +1,6 @@
 import { cn } from '../utils/cn';
 import { Check, Undo2, Shuffle, SkipForward, Trash2, Eye, EyeOff } from 'lucide-react';
+import { useTranslation } from '../i18n/LanguageContext';
 
 interface GameActionsProps {
   isMyTurn: boolean;
@@ -21,6 +22,8 @@ export function GameActions({
   onConfirmMove, onUndoLast, onClearAll, onSwap, onPass, isLoading,
   showLastMove, onToggleLastMove, hasLastMove,
 }: GameActionsProps) {
+  const { t } = useTranslation();
+
   return (
     <div className="flex items-center gap-1.5 justify-center">
       {hasPlacedTiles ? (
@@ -69,7 +72,7 @@ export function GameActions({
               data-testid="show-last-move"
             >
               {showLastMove ? <EyeOff size={13} /> : <Eye size={13} />}
-              {showLastMove ? 'Ukryj' : 'Ostatni ruch'}
+              {showLastMove ? t('hideLast') : t('lastMove')}
             </button>
           )}
           {isMyTurn ? (
@@ -82,7 +85,7 @@ export function GameActions({
                   data-testid="swap-tiles"
                 >
                   <Shuffle size={13} />
-                  Wymień
+                  {t('swap')}
                 </button>
               )}
               <button
@@ -92,11 +95,11 @@ export function GameActions({
                 data-testid="pass-turn"
               >
                 <SkipForward size={13} />
-                Pas
+                {t('pass')}
               </button>
             </>
           ) : (
-            <span className="text-[10px] text-muted-foreground">Czekaj na swoją kolej...</span>
+            <span className="text-[10px] text-muted-foreground">{t('waitForTurn')}</span>
           )}
         </>
       )}

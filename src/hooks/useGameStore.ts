@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { GameState, Tile, PlacedTile, Position } from '../game/types';
+import type { Lang } from '../i18n/translations';
 
 interface GameStore {
   // Player identity (from Firebase Auth)
@@ -16,6 +17,7 @@ interface GameStore {
   selectedTiles: Tile[];
   placedTilesThisTurn: PlacedTile[];
   isDarkMode: boolean;
+  lang: Lang;
 
   // Actions
   setAuth: (uid: string, nickname: string, photoURL: string | null) => void;
@@ -30,6 +32,7 @@ interface GameStore {
   undoLastPlacement: () => void;
   clearPlacements: () => void;
   toggleDarkMode: () => void;
+  setLang: (lang: Lang) => void;
   leaveGame: () => void;
   reset: () => void;
 }
@@ -44,6 +47,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   selectedTiles: [],
   placedTilesThisTurn: [],
   isDarkMode: window.matchMedia('(prefers-color-scheme: dark)').matches,
+  lang: (navigator.language.startsWith('pl') ? 'pl' : 'en') as Lang,
 
   setAuth: (uid, nickname, photoURL) => set({ uid, nickname, photoURL }),
   setPlayerId: (id) => set({ playerId: id }),
@@ -86,6 +90,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
     return { isDarkMode: newMode };
   }),
+
+  setLang: (lang) => set({ lang }),
 
   // Soft reset: keeps auth info (uid, nickname, photoURL) for multi-game flow
   leaveGame: () => set({

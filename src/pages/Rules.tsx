@@ -1,14 +1,13 @@
-import { useState } from 'react';
 import { cn } from '../utils/cn';
-import { ArrowLeft, Globe } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
+import { useTranslation } from '../i18n/LanguageContext';
+import type { Lang } from '../i18n/translations';
 
 interface RulesProps {
   onBack: () => void;
 }
 
-type Lang = 'pl' | 'en';
-
-const rules: Record<Lang, {
+const rulesContent: Record<Lang, {
   title: string;
   sections: { heading: string; content: string[] }[];
 }> = {
@@ -168,45 +167,17 @@ function ExampleTile({ color, shape }: { color: string; shape: string }) {
 }
 
 export function Rules({ onBack }: RulesProps) {
-  const [lang, setLang] = useState<Lang>('pl');
-  const r = rules[lang];
+  const { t, lang } = useTranslation();
+  const r = rulesContent[lang];
 
   return (
     <div className="max-w-md mx-auto space-y-6">
-      <div className="flex items-center justify-between">
-        <button
-          onClick={onBack}
-          className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors text-sm"
-        >
-          <ArrowLeft size={16} /> Wróć
-        </button>
-
-        {/* Language toggle */}
-        <div className="flex items-center gap-1 bg-muted rounded-lg p-0.5">
-          <button
-            onClick={() => setLang('pl')}
-            className={cn(
-              'px-3 py-1.5 rounded-md text-xs font-semibold transition-all',
-              lang === 'pl'
-                ? 'bg-card text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground',
-            )}
-          >
-            🇵🇱 PL
-          </button>
-          <button
-            onClick={() => setLang('en')}
-            className={cn(
-              'px-3 py-1.5 rounded-md text-xs font-semibold transition-all',
-              lang === 'en'
-                ? 'bg-card text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground',
-            )}
-          >
-            🇬🇧 EN
-          </button>
-        </div>
-      </div>
+      <button
+        onClick={onBack}
+        className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors text-sm"
+      >
+        <ArrowLeft size={16} /> {t('back')}
+      </button>
 
       <div className="bg-card rounded-2xl border border-border/50 p-6 shadow-sm space-y-6">
         <h2 className="font-display font-bold text-xl text-center">{r.title}</h2>
@@ -247,7 +218,7 @@ export function Rules({ onBack }: RulesProps) {
         {/* Scoring example */}
         <div className="rounded-xl bg-muted/30 dark:bg-muted/10 border border-border/50 p-4 space-y-3">
           <h4 className="font-display font-bold text-sm">
-            {lang === 'pl' ? 'Przykład punktacji' : 'Scoring Example'}
+            {t('scoringExample')}
           </h4>
           <div className="space-y-2 text-sm text-muted-foreground">
             <div className="flex items-center gap-3">
@@ -256,7 +227,7 @@ export function Rules({ onBack }: RulesProps) {
                 <ExampleTile color="red" shape="star" />
                 <ExampleTile color="red" shape="diamond" />
               </div>
-              <span>= 3 {lang === 'pl' ? 'pkt' : 'pts'}</span>
+              <span>= 3 {t('pts')}</span>
             </div>
             <p className="text-xs">
               {lang === 'pl'
@@ -272,7 +243,7 @@ export function Rules({ onBack }: RulesProps) {
                 <ExampleTile color="blue" shape="circle" />
                 <ExampleTile color="purple" shape="circle" />
               </div>
-              <span className="font-bold text-primary">= 12 {lang === 'pl' ? 'pkt' : 'pts'} !</span>
+              <span className="font-bold text-primary">= 12 {t('pts')} !</span>
             </div>
             <p className="text-xs">
               {lang === 'pl'

@@ -1,17 +1,20 @@
 import { ArrowLeft, Lightbulb, Code, ExternalLink } from 'lucide-react';
+import { useTranslation } from '../i18n/LanguageContext';
 
 interface AboutProps {
   onBack: () => void;
 }
 
 export function About({ onBack }: AboutProps) {
+  const { t } = useTranslation();
+
   return (
     <div className="max-w-md mx-auto space-y-6">
       <button
         onClick={onBack}
         className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors text-sm"
       >
-        <ArrowLeft size={16} /> Wróć
+        <ArrowLeft size={16} /> {t('back')}
       </button>
 
       <div className="bg-card rounded-2xl border border-border/50 p-6 shadow-sm space-y-6">
@@ -30,7 +33,7 @@ export function About({ onBack }: AboutProps) {
             ))}
           </div>
           <h2 className="font-display font-bold text-xl">Qwirkle Online</h2>
-          <p className="text-xs text-muted-foreground">Wersja 1.0 · 2026</p>
+          <p className="text-xs text-muted-foreground">{t('version')}</p>
         </div>
 
         {/* Credits */}
@@ -40,7 +43,7 @@ export function About({ onBack }: AboutProps) {
               <Lightbulb size={20} className="text-amber-500" />
             </div>
             <div>
-              <div className="font-semibold text-sm">Koncepcja, projekt, testy</div>
+              <div className="font-semibold text-sm">{t('conceptDesignTesting')}</div>
               <div className="text-muted-foreground text-sm mt-0.5">Emil W</div>
             </div>
           </div>
@@ -50,7 +53,7 @@ export function About({ onBack }: AboutProps) {
               <Code size={20} className="text-blue-500" />
             </div>
             <div>
-              <div className="font-semibold text-sm">Kodowanie</div>
+              <div className="font-semibold text-sm">{t('coding')}</div>
               <div className="text-muted-foreground text-sm mt-0.5">
                 <a
                   href="https://www.perplexity.ai/computer"
@@ -77,7 +80,7 @@ export function About({ onBack }: AboutProps) {
         {/* Tech stack */}
         <div className="space-y-2">
           <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-            Technologie
+            {t('technologies')}
           </div>
           <div className="flex flex-wrap gap-1.5">
             {['React', 'TypeScript', 'Tailwind CSS', 'Firebase Auth', 'Firebase RTDB', 'Vite', 'Zustand', 'Netlify'].map(tech => (
@@ -93,8 +96,7 @@ export function About({ onBack }: AboutProps) {
 
         {/* Disclaimer */}
         <p className="text-[11px] text-muted-foreground/60 text-center leading-relaxed">
-          Qwirkle jest znakiem towarowym MindWare. Ta aplikacja jest niezależnym projektem hobbystycznym
-          i nie jest powiązana z MindWare.
+          {t('disclaimer')}
         </p>
       </div>
     </div>

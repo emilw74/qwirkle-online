@@ -2,12 +2,15 @@ import { useState, useEffect } from 'react';
 import { signInWithGoogle, getUserProfile, onAuthChange, UserProfile } from '../firebase/authService';
 import { cn } from '../utils/cn';
 import { LogIn } from 'lucide-react';
+import { useTranslation } from '../i18n/LanguageContext';
+import { LanguageToggle } from './LanguageToggle';
 
 interface AuthGateProps {
   children: (profile: UserProfile) => React.ReactNode;
 }
 
 export function AuthGate({ children }: AuthGateProps) {
+  const { t } = useTranslation();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -21,9 +24,7 @@ export function AuthGate({ children }: AuthGateProps) {
           if (p) {
             setProfile(p);
           } else {
-            // Profile doesn't exist yet — might happen if auth state persisted
-            // but profile creation failed. Create a minimal one.
-            const displayName = user.displayName || user.email?.split('@')[0] || 'Gracz';
+            const displayName = user.displayName || user.email?.split('@')[0] || t('defaultPlayer');
             const newProfile: UserProfile = {
               uid: user.uid,
               nickname: displayName,
@@ -35,7 +36,7 @@ export function AuthGate({ children }: AuthGateProps) {
           }
         } catch (e) {
           console.error('Error loading profile:', e);
-          setError('Błąd ładowania profilu');
+          setError(t('authErrorProfile'));
         }
       } else {
         setProfile(null);
@@ -57,7 +58,7 @@ export function AuthGate({ children }: AuthGateProps) {
       } else if (e.code === 'auth/cancelled-popup-request') {
         // Another popup was already open
       } else {
-        setError(e.message || 'Błąd logowania');
+        setError(e.message || t('authErrorLogin'));
         console.error('Sign in error:', e);
       }
     }
@@ -76,6 +77,11 @@ export function AuthGate({ children }: AuthGateProps) {
     return (
       <div className="min-h-dvh flex items-center justify-center bg-background p-4">
         <div className="max-w-sm w-full space-y-8 text-center">
+          {/* Language toggle */}
+          <div className="flex justify-end">
+            <LanguageToggle />
+          </div>
+
           {/* Logo */}
           <div className="space-y-4">
             <div className="inline-flex items-center gap-1">
@@ -94,7 +100,7 @@ export function AuthGate({ children }: AuthGateProps) {
               Qwirkle Online
             </h1>
             <p className="text-muted-foreground text-sm">
-              Zaloguj się aby grać z przyjaciółmi
+              {t('authSubtitle')}
             </p>
           </div>
 
@@ -123,7 +129,7 @@ export function AuthGate({ children }: AuthGateProps) {
                   <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
                   <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
                 </svg>
-                Zaloguj się przez Google
+                {t('signInGoogle')}
               </>
             )}
           </button>
@@ -135,8 +141,9 @@ export function AuthGate({ children }: AuthGateProps) {
           )}
 
           <p className="text-xs text-muted-foreground/70">
-            Twoje konto Google służy tylko do identyfikacji.
-            <br />Nie pobieramy żadnych dodatkowych danych.
+            {t('authDisclaimer').split('\n').map((line, i) => (
+              <span key={i}>{line}{i === 0 && <br />}</span>
+            ))}
           </p>
         </div>
       </div>

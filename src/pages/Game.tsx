@@ -13,12 +13,14 @@ import { Tile, PlacedTile, Position, GameState } from '../game/types';
 import { validateMove, boardFromRecord } from '../game/engine';
 import { cn } from '../utils/cn';
 import { ArrowLeft, Trophy, MessageCircle } from 'lucide-react';
+import { useTranslation } from '../i18n/LanguageContext';
 
 interface GameProps {
   onNavigate: (page: 'lobby' | 'leaderboard' | 'history') => void;
 }
 
 export function Game({ onNavigate }: GameProps) {
+  const { t } = useTranslation();
   const {
     playerId, roomCode, gameState, setGameState,
     selectedTiles, placedTilesThisTurn,
@@ -78,10 +80,10 @@ export function Game({ onNavigate }: GameProps) {
     if (!player) return;
 
     if (lastMove.isSwap) {
-      setLastMoveInfo(`${player.nickname} wymienił kafelki`);
+      setLastMoveInfo(`${player.nickname} ${t('swappedTiles')}`);
     } else if (lastMove.score > 0) {
       const qwirkle = lastMove.score >= 12 ? ' QWIRKLE!' : '';
-      setLastMoveInfo(`${player.nickname}: +${lastMove.score} pkt${qwirkle}`);
+      setLastMoveInfo(`${player.nickname}: +${lastMove.score} ${t('pts')}${qwirkle}`);
     }
 
     const timer = setTimeout(() => setLastMoveInfo(''), 4000);
@@ -91,9 +93,9 @@ export function Game({ onNavigate }: GameProps) {
   if (!gameState || !playerId || !roomCode) {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-4">
-        <p className="text-muted-foreground">Brak danych gry</p>
+        <p className="text-muted-foreground">{t('noGameData')}</p>
         <button onClick={() => onNavigate('lobby')} className="text-primary hover:underline text-sm">
-          Wróć do lobby
+          {t('backToLobby')}
         </button>
       </div>
     );
@@ -108,7 +110,6 @@ export function Game({ onNavigate }: GameProps) {
   // Get the last non-swap move's tile positions for highlighting
   const lastMovePositions: Set<string> = new Set();
   if (showLastMove && gameState.moves?.length) {
-    // Find the most recent move that placed tiles (not a swap/pass)
     for (let i = gameState.moves.length - 1; i >= 0; i--) {
       const m = gameState.moves[i];
       if (!m.isSwap && m.tiles?.length > 0) {
@@ -131,7 +132,6 @@ export function Game({ onNavigate }: GameProps) {
   const handleCellClick = (position: Position) => {
     if (!selectedTile || !isMyTurn) return;
 
-    // Validate this placement
     const tempBoard = boardFromRecord(board);
     for (const pt of placedTilesThisTurn) {
       tempBoard.set(`${pt.position.row},${pt.position.col}`, pt);
@@ -152,7 +152,7 @@ export function Game({ onNavigate }: GameProps) {
       const isFirstMove = tempBoard.size === 0;
       const result = validateMove(tempBoard, placedTilesThisTurn, isFirstMove);
       if (!result.valid) {
-        setError(result.error || 'Nieprawidłowy ruch');
+        setError(result.error || t('invalidMove'));
         setIsLoading(false);
         return;
       }
@@ -160,7 +160,7 @@ export function Game({ onNavigate }: GameProps) {
       clearPlacements();
       setSelectedTile(null);
     } catch (e: any) {
-      setError(e.message || 'Błąd');
+      setError(e.message || t('error'));
     }
     setIsLoading(false);
   };
@@ -180,7 +180,7 @@ export function Game({ onNavigate }: GameProps) {
       setShowSwapDialog(false);
       setSwapSelection(new Set());
     } catch (e: any) {
-      setError(e.message || 'Błąd wymiany');
+      setError(e.message || t('swapError'));
     }
     setIsLoading(false);
   };
@@ -191,7 +191,7 @@ export function Game({ onNavigate }: GameProps) {
     try {
       await passPlayerTurn(roomCode, playerId);
     } catch (e: any) {
-      setError(e.message || 'Błąd');
+      setError(e.message || t('error'));
     }
     setIsLoading(false);
   };
@@ -214,9 +214,9 @@ export function Game({ onNavigate }: GameProps) {
       <div className="max-w-lg mx-auto space-y-4 py-4 px-4 overflow-y-auto h-full">
         <div className="text-center space-y-3">
           <Trophy size={48} className="mx-auto text-yellow-500" />
-          <h2 className="font-display font-bold text-2xl">Koniec gry</h2>
+          <h2 className="font-display font-bold text-2xl">{t('gameEnd')}</h2>
           <p className="text-muted-foreground">
-            Wygrywa: <strong className="text-foreground">{gameState.winner}</strong>
+            {t('winner')} <strong className="text-foreground">{gameState.winner}</strong>
           </p>
         </div>
 
@@ -241,7 +241,7 @@ export function Game({ onNavigate }: GameProps) {
               <div className="flex-1">
                 <div className="font-medium text-sm">
                   {player.nickname}
-                  {player.id === playerId && ' (Ty)'}
+                  {player.id === playerId && ` (${t('you')})`}
                   {player.isAI && ' 🤖'}
                 </div>
               </div>
@@ -255,7 +255,7 @@ export function Game({ onNavigate }: GameProps) {
             onClick={() => onNavigate('lobby')}
             className="flex-1 py-3 rounded-xl bg-primary text-primary-foreground font-semibold text-sm hover:opacity-90 transition-all"
           >
-            Nowa gra
+            {t('newGame')}
           </button>
           <button
             onClick={() => onNavigate('leaderboard')}
@@ -332,8 +332,8 @@ export function Game({ onNavigate }: GameProps) {
       {showSwapDialog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="bg-card rounded-2xl border border-border p-6 max-w-sm w-full shadow-xl space-y-4">
-            <h3 className="font-display font-bold text-lg">Wymień kafelki</h3>
-            <p className="text-sm text-muted-foreground">Wybierz kafelki do wymiany:</p>
+            <h3 className="font-display font-bold text-lg">{t('swapTiles')}</h3>
+            <p className="text-sm text-muted-foreground">{t('selectTilesToSwap')}</p>
             <div className="flex gap-2 flex-wrap justify-center">
               {myHand.map(tile => (
                 <TileView
@@ -355,14 +355,14 @@ export function Game({ onNavigate }: GameProps) {
                 onClick={() => setShowSwapDialog(false)}
                 className="flex-1 py-2.5 rounded-lg border border-border text-sm hover:bg-muted transition-colors"
               >
-                Anuluj
+                {t('cancel')}
               </button>
               <button
                 onClick={handleConfirmSwap}
                 disabled={swapSelection.size === 0 || isLoading}
                 className="flex-1 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-all"
               >
-                Wymień ({swapSelection.size})
+                {t('swapCount')} ({swapSelection.size})
               </button>
             </div>
           </div>

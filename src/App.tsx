@@ -11,10 +11,13 @@ import { signOut } from './firebase/authService';
 import { cn } from './utils/cn';
 import { Moon, Sun, Home, LogOut, Pencil } from 'lucide-react';
 import { UserProfile, updateNickname } from './firebase/authService';
+import { LanguageProvider, useTranslation } from './i18n/LanguageContext';
+import { LanguageToggle } from './components/LanguageToggle';
 
 type Page = 'lobby' | 'game' | 'leaderboard' | 'history' | 'rules' | 'about';
 
 function AppContent({ profile }: { profile: UserProfile }) {
+  const { t } = useTranslation();
   const [page, setPage] = useState<Page>('lobby');
   const { isDarkMode, toggleDarkMode, leaveGame, setAuth, nickname } = useGameStore();
   const [editingNick, setEditingNick] = useState(false);
@@ -54,7 +57,7 @@ function AppContent({ profile }: { profile: UserProfile }) {
   const handleSaveNick = async () => {
     const trimmed = nickInput.trim();
     if (!trimmed || trimmed.length > 16) {
-      setNickError('Nick musi mieć 1-16 znaków');
+      setNickError(t('nickError'));
       return;
     }
     try {
@@ -62,7 +65,7 @@ function AppContent({ profile }: { profile: UserProfile }) {
       setAuth(profile.uid, trimmed, profile.photoURL);
       setEditingNick(false);
     } catch (e: any) {
-      setNickError(e.message || 'Błąd zmiany nicku');
+      setNickError(e.message || t('nickErrorGeneric'));
     }
   };
 
@@ -123,7 +126,7 @@ function AppContent({ profile }: { profile: UserProfile }) {
                 <button
                   onClick={handleStartEditNick}
                   className="p-1 rounded hover:bg-muted transition-colors"
-                  title="Zmień nick"
+                  title={t('changeNick')}
                 >
                   <Pencil size={12} className="text-muted-foreground" />
                 </button>
@@ -133,7 +136,7 @@ function AppContent({ profile }: { profile: UserProfile }) {
               <button
                 onClick={handleNavigateHome}
                 className="p-1.5 rounded-lg hover:bg-muted transition-colors"
-                title="Wróć do lobby"
+                title={t('backToLobby')}
               >
                 <Home size={16} />
               </button>
@@ -144,7 +147,7 @@ function AppContent({ profile }: { profile: UserProfile }) {
                 'rounded-lg hover:bg-muted transition-colors',
                 isGame ? 'p-1.5' : 'p-2',
               )}
-              aria-label={isDarkMode ? 'Tryb jasny' : 'Tryb ciemny'}
+              aria-label={isDarkMode ? t('lightMode') : t('darkMode')}
               data-testid="theme-toggle"
             >
               {isDarkMode ? <Sun size={isGame ? 16 : 18} /> : <Moon size={isGame ? 16 : 18} />}
@@ -153,7 +156,7 @@ function AppContent({ profile }: { profile: UserProfile }) {
               <button
                 onClick={handleSignOut}
                 className="p-2 rounded-lg hover:bg-muted transition-colors"
-                title="Wyloguj się"
+                title={t('signOut')}
                 data-testid="sign-out"
               >
                 <LogOut size={18} className="text-muted-foreground" />
@@ -167,13 +170,13 @@ function AppContent({ profile }: { profile: UserProfile }) {
       {editingNick && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="bg-card rounded-2xl border border-border p-5 max-w-sm w-full shadow-xl space-y-4">
-            <h3 className="font-display font-bold text-lg">Zmień nick</h3>
+            <h3 className="font-display font-bold text-lg">{t('nickModalTitle')}</h3>
             <input
               type="text"
               value={nickInput}
               onChange={e => setNickInput(e.target.value)}
               maxLength={16}
-              placeholder="Nowy nick..."
+              placeholder={t('nickPlaceholder')}
               className="w-full px-4 py-2.5 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring text-sm"
               autoFocus
               onKeyDown={e => e.key === 'Enter' && handleSaveNick()}
@@ -187,14 +190,14 @@ function AppContent({ profile }: { profile: UserProfile }) {
                 onClick={() => setEditingNick(false)}
                 className="flex-1 py-2.5 rounded-lg border border-border text-sm font-medium hover:bg-muted transition-colors"
               >
-                Anuluj
+                {t('cancel')}
               </button>
               <button
                 onClick={handleSaveNick}
                 className="flex-1 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-all"
                 data-testid="save-nickname"
               >
-                Zapisz
+                {t('save')}
               </button>
             </div>
           </div>
@@ -231,9 +234,11 @@ function AppContent({ profile }: { profile: UserProfile }) {
 
 function App() {
   return (
-    <AuthGate>
-      {(profile) => <AppContent profile={profile} />}
-    </AuthGate>
+    <LanguageProvider>
+      <AuthGate>
+        {(profile) => <AppContent profile={profile} />}
+      </AuthGate>
+    </LanguageProvider>
   );
 }
 

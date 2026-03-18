@@ -14,6 +14,8 @@ import {
 import { AILevel, GameState, Tile } from '../game/types';
 import { TileView } from '../components/TileView';
 import { posKey, parseKey } from '../game/engine';
+import { useTranslation } from '../i18n/LanguageContext';
+import { LanguageToggle } from '../components/LanguageToggle';
 
 interface LobbyProps {
   onNavigate: (page: 'game' | 'leaderboard' | 'history' | 'rules' | 'about') => void;
@@ -21,8 +23,9 @@ interface LobbyProps {
 
 // --- Mini Board for finished game detail ---
 function MiniBoard({ board, cellSize = 18 }: { board: Record<string, Tile>; cellSize?: number }) {
+  const { t } = useTranslation();
   const keys = Object.keys(board);
-  if (keys.length === 0) return <div className="text-xs text-muted-foreground text-center py-4">Pusta plansza</div>;
+  if (keys.length === 0) return <div className="text-xs text-muted-foreground text-center py-4">{t('emptyBoard')}</div>;
 
   const positions = keys.map(parseKey);
   const minRow = Math.min(...positions.map(p => p.row));
@@ -70,8 +73,9 @@ function MiniBoard({ board, cellSize = 18 }: { board: Record<string, Tile>; cell
 
 // --- Finished Game Detail ---
 function FinishedGameDetail({ session, onClose }: { session: PlayerSession; onClose: () => void }) {
+  const { t, lang } = useTranslation();
   const finishedDate = session.finishedAt
-    ? new Date(session.finishedAt).toLocaleString('pl-PL', {
+    ? new Date(session.finishedAt).toLocaleString(lang === 'pl' ? 'pl-PL' : 'en-GB', {
         day: '2-digit', month: '2-digit', year: 'numeric',
         hour: '2-digit', minute: '2-digit',
       })
@@ -90,7 +94,7 @@ function FinishedGameDetail({ session, onClose }: { session: PlayerSession; onCl
         </div>
 
         <div className="text-xs text-muted-foreground">
-          Zakończono: {finishedDate}
+          {t('finishedAt')} {finishedDate}
         </div>
 
         {/* Scores */}
@@ -127,7 +131,7 @@ function FinishedGameDetail({ session, onClose }: { session: PlayerSession; onCl
         {/* Board */}
         {session.finalBoard && Object.keys(session.finalBoard).length > 0 && (
           <div className="space-y-2">
-            <div className="text-sm font-medium text-muted-foreground">Ostateczny układ planszy</div>
+            <div className="text-sm font-medium text-muted-foreground">{t('finalBoardLayout')}</div>
             <MiniBoard board={session.finalBoard} cellSize={22} />
           </div>
         )}
@@ -137,6 +141,7 @@ function FinishedGameDetail({ session, onClose }: { session: PlayerSession; onCl
 }
 
 export function Lobby({ onNavigate }: LobbyProps) {
+  const { t, lang } = useTranslation();
   const { uid, nickname, setPlayerId, setRoomCode, setGameState } = useGameStore();
   const [mode, setMode] = useState<'menu' | 'create' | 'join' | 'waiting' | 'mygames'>('menu');
   const [joinCode, setJoinCode] = useState('');
@@ -152,7 +157,7 @@ export function Lobby({ onNavigate }: LobbyProps) {
   const [loadingGames, setLoadingGames] = useState(false);
   const [selectedFinished, setSelectedFinished] = useState<PlayerSession | null>(null);
 
-  const currentNick = nickname || 'Gracz';
+  const currentNick = nickname || t('defaultPlayer');
   const currentUid = uid || '';
 
   const loadGames = async () => {
@@ -168,7 +173,7 @@ export function Lobby({ onNavigate }: LobbyProps) {
   };
 
   const handleCreateRoom = async () => {
-    if (!currentUid) { setError('Błąd autoryzacji'); return; }
+    if (!currentUid) { setError(t('authError')); return; }
     setIsLoading(true);
     setError('');
     try {
@@ -196,14 +201,14 @@ export function Lobby({ onNavigate }: LobbyProps) {
       });
       setUnsubscribe(() => unsub);
     } catch (e: any) {
-      setError(e.message || 'Błąd tworzenia pokoju');
+      setError(e.message || t('createRoomError'));
     }
     setIsLoading(false);
   };
 
   const handleJoinRoom = async () => {
-    if (!currentUid) { setError('Błąd autoryzacji'); return; }
-    if (joinCode.length !== 6) { setError('Kod pokoju musi mieć 6 cyfr'); return; }
+    if (!currentUid) { setError(t('authError')); return; }
+    if (joinCode.length !== 6) { setError(t('roomCodeError')); return; }
     setIsLoading(true);
     setError('');
     try {
@@ -231,7 +236,7 @@ export function Lobby({ onNavigate }: LobbyProps) {
       });
       setUnsubscribe(() => unsub);
     } catch (e: any) {
-      setError(e.message || 'Błąd dołączania');
+      setError(e.message || t('joinError'));
     }
     setIsLoading(false);
   };
@@ -254,7 +259,7 @@ export function Lobby({ onNavigate }: LobbyProps) {
       await new Promise(resolve => setTimeout(resolve, 500));
       onNavigate('game');
     } catch (e: any) {
-      setError(e.message || 'Błąd powrotu do gry');
+      setError(e.message || t('rejoinError'));
     }
     setIsLoading(false);
   };
@@ -278,7 +283,7 @@ export function Lobby({ onNavigate }: LobbyProps) {
       const updatedState = await addAIToRoom(roomInfo.code, level);
       await savePlayerSession(currentUid, roomInfo.code, useGameStore.getState().playerId!, updatedState.players);
     } catch (e: any) {
-      setError(e.message || 'Błąd dodawania AI');
+      setError(e.message || t('addAiError'));
     }
     setIsLoading(false);
   };
@@ -289,7 +294,7 @@ export function Lobby({ onNavigate }: LobbyProps) {
     try {
       await startGameInRoom(roomInfo.code);
     } catch (e: any) {
-      setError(e.message || 'Błąd rozpoczynania gry');
+      setError(e.message || t('startGameError'));
     }
     setIsLoading(false);
   };
@@ -332,17 +337,17 @@ export function Lobby({ onNavigate }: LobbyProps) {
       <div className="max-w-md mx-auto space-y-6">
         {finishedModal}
         <button onClick={handleBack} className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors text-sm">
-          <ArrowLeft size={16} /> Wróć
+          <ArrowLeft size={16} /> {t('back')}
         </button>
 
         <div className="bg-card rounded-2xl border border-border/50 p-6 shadow-sm space-y-5">
           <div className="flex items-center justify-between">
-            <h2 className="font-display font-bold text-xl">Moje gry</h2>
+            <h2 className="font-display font-bold text-xl">{t('myGames')}</h2>
             <button
               onClick={() => loadGames()}
               disabled={loadingGames}
               className="p-2 rounded-lg hover:bg-muted transition-colors"
-              title="Odśwież"
+              title={t('refresh')}
             >
               <RefreshCw size={16} className={cn(loadingGames && 'animate-spin')} />
             </button>
@@ -358,7 +363,7 @@ export function Lobby({ onNavigate }: LobbyProps) {
               {active.length > 0 && (
                 <div className="space-y-2">
                   <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                    Aktywne ({active.length})
+                    {t('active')} ({active.length})
                   </div>
                   {active.map(({ session, gameState }) => {
                     const isMyTurn = gameState.players[gameState.currentPlayerIndex]?.id === session.playerId;
@@ -388,10 +393,10 @@ export function Lobby({ onNavigate }: LobbyProps) {
                                     ? 'bg-green-500/15 text-green-700 dark:text-green-400'
                                     : 'bg-muted text-muted-foreground',
                               )}>
-                                {gameState.phase === 'waiting' ? 'Oczekiwanie' : isMyTurn ? 'Twoja kolej' : 'Czekaj'}
+                                {gameState.phase === 'waiting' ? t('waiting') : isMyTurn ? t('yourTurn') : t('waitTurn')}
                               </span>
                               {myPlayer && gameState.phase === 'playing' && (
-                                <span className="text-xs text-muted-foreground">{myPlayer.score} pkt</span>
+                                <span className="text-xs text-muted-foreground">{myPlayer.score} {t('pts')}</span>
                               )}
                             </div>
                           </div>
@@ -407,11 +412,11 @@ export function Lobby({ onNavigate }: LobbyProps) {
               {finished.length > 0 && (
                 <div className="space-y-2">
                   <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                    Zakończone ({finished.length})
+                    {t('finished')} ({finished.length})
                   </div>
                   {finished.map(session => {
                     const finishedDate = session.finishedAt
-                      ? new Date(session.finishedAt).toLocaleString('pl-PL', {
+                      ? new Date(session.finishedAt).toLocaleString(lang === 'pl' ? 'pl-PL' : 'en-GB', {
                           day: '2-digit', month: '2-digit', year: 'numeric',
                           hour: '2-digit', minute: '2-digit',
                         })
@@ -457,7 +462,7 @@ export function Lobby({ onNavigate }: LobbyProps) {
                             onClick={() => handleDeleteFinished(session)}
                             className="text-xs text-muted-foreground hover:text-destructive transition-colors"
                           >
-                            Usuń
+                            {t('remove')}
                           </button>
                         </div>
                       </div>
@@ -470,8 +475,8 @@ export function Lobby({ onNavigate }: LobbyProps) {
               {active.length === 0 && finished.length === 0 && (
                 <div className="text-center py-8 space-y-2">
                   <Gamepad2 size={32} className="mx-auto text-muted-foreground/50" />
-                  <p className="text-sm text-muted-foreground">Brak gier</p>
-                  <p className="text-xs text-muted-foreground/70">Stwórz pokój lub dołącz do istniejącego</p>
+                  <p className="text-sm text-muted-foreground">{t('noGames')}</p>
+                  <p className="text-xs text-muted-foreground/70">{t('noGamesHint')}</p>
                 </div>
               )}
             </>
@@ -494,14 +499,14 @@ export function Lobby({ onNavigate }: LobbyProps) {
     return (
       <div className="max-w-md mx-auto space-y-6">
         <button onClick={handleBack} className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors text-sm">
-          <ArrowLeft size={16} /> Wróć
+          <ArrowLeft size={16} /> {t('back')}
         </button>
 
         <div className="bg-card rounded-2xl border border-border/50 p-6 shadow-sm space-y-5">
           <div className="text-center space-y-2">
-            <h2 className="font-display font-bold text-xl">Poczekalnia</h2>
+            <h2 className="font-display font-bold text-xl">{t('waitingRoom')}</h2>
             <div className="flex items-center justify-center gap-2">
-              <span className="text-muted-foreground text-sm">Kod pokoju:</span>
+              <span className="text-muted-foreground text-sm">{t('roomCodeLabel')}</span>
               <button
                 onClick={copyCode}
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 text-primary rounded-lg font-mono font-bold text-lg hover:bg-primary/20 transition-colors"
@@ -514,7 +519,7 @@ export function Lobby({ onNavigate }: LobbyProps) {
 
           <div className="space-y-2">
             <div className="text-sm font-medium text-muted-foreground">
-              Gracze ({roomInfo.players.length}/{maxPlayers})
+              {t('playersCount')} ({roomInfo.players.length}/{maxPlayers})
             </div>
             {roomInfo.players.map((name, i) => (
               <div key={i} className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
@@ -529,7 +534,7 @@ export function Lobby({ onNavigate }: LobbyProps) {
 
           {isHost && canAddAI && (
             <div className="space-y-2">
-              <div className="text-sm font-medium text-muted-foreground">Dodaj bota</div>
+              <div className="text-sm font-medium text-muted-foreground">{t('addBot')}</div>
               <div className="grid grid-cols-3 gap-2">
                 {(['easy', 'medium', 'hard'] as AILevel[]).map(level => (
                   <button
@@ -545,7 +550,7 @@ export function Lobby({ onNavigate }: LobbyProps) {
                     )}
                   >
                     <Bot size={20} className="mx-auto mb-1" />
-                    {level === 'easy' ? 'Łatwy' : level === 'medium' ? 'Średni' : 'Trudny'}
+                    {level === 'easy' ? t('botEasy') : level === 'medium' ? t('botMedium') : t('botHard')}
                   </button>
                 ))}
               </div>
@@ -569,13 +574,13 @@ export function Lobby({ onNavigate }: LobbyProps) {
               data-testid="start-game"
             >
               <Play size={18} />
-              {canStart ? 'Rozpocznij grę' : 'Potrzeba min. 2 graczy'}
+              {canStart ? t('startGame') : t('needMinPlayers')}
             </button>
           )}
 
           {!isHost && (
             <div className="text-center text-sm text-muted-foreground animate-pulse">
-              Czekam na hosta...
+              {t('waitingForHost')}
             </div>
           )}
         </div>
@@ -587,12 +592,12 @@ export function Lobby({ onNavigate }: LobbyProps) {
     return (
       <div className="max-w-md mx-auto space-y-6">
         <button onClick={handleBack} className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors text-sm">
-          <ArrowLeft size={16} /> Wróć
+          <ArrowLeft size={16} /> {t('back')}
         </button>
 
         <div className="bg-card rounded-2xl border border-border/50 p-6 shadow-sm space-y-5">
           <h2 className="font-display font-bold text-xl text-center">
-            {mode === 'create' ? 'Stwórz pokój' : 'Dołącz do pokoju'}
+            {mode === 'create' ? t('createRoom') : t('joinRoom')}
           </h2>
 
           <div className="space-y-4">
@@ -603,19 +608,19 @@ export function Lobby({ onNavigate }: LobbyProps) {
               </div>
               <div>
                 <div className="font-medium text-sm">{currentNick}</div>
-                <div className="text-xs text-muted-foreground">Zalogowany</div>
+                <div className="text-xs text-muted-foreground">{t('loggedIn')}</div>
               </div>
             </div>
 
             {mode === 'join' && (
               <div>
-                <label className="block text-sm font-medium mb-1.5">Kod pokoju</label>
+                <label className="block text-sm font-medium mb-1.5">{t('roomCode')}</label>
                 <input
                   type="text"
                   value={joinCode}
                   onChange={e => setJoinCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                   maxLength={6}
-                  placeholder="6-cyfrowy kod..."
+                  placeholder={t('roomCodePlaceholder')}
                   className="w-full px-4 py-2.5 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring text-sm font-mono text-center text-xl tracking-[0.3em]"
                   data-testid="room-code-input"
                 />
@@ -624,7 +629,7 @@ export function Lobby({ onNavigate }: LobbyProps) {
 
             {mode === 'create' && (
               <div>
-                <label className="block text-sm font-medium mb-1.5">Maks. graczy</label>
+                <label className="block text-sm font-medium mb-1.5">{t('maxPlayers')}</label>
                 <div className="flex gap-2">
                   {[2, 3].map(n => (
                     <button
@@ -637,7 +642,7 @@ export function Lobby({ onNavigate }: LobbyProps) {
                           : 'border-border hover:bg-muted',
                       )}
                     >
-                      {n} graczy
+                      {n} {t('nPlayers')}
                     </button>
                   ))}
                 </div>
@@ -659,7 +664,7 @@ export function Lobby({ onNavigate }: LobbyProps) {
               ) : (
                 <>
                   {mode === 'create' ? <Plus size={18} /> : <LogIn size={18} />}
-                  {mode === 'create' ? 'Stwórz pokój' : 'Dołącz'}
+                  {mode === 'create' ? t('createRoom') : t('join')}
                 </>
               )}
             </button>
@@ -672,8 +677,11 @@ export function Lobby({ onNavigate }: LobbyProps) {
   // Main menu
   return (
     <div className="max-w-md mx-auto space-y-6">
-      {/* Logo */}
+      {/* Logo + Language toggle */}
       <div className="text-center space-y-3 pt-4">
+        <div className="flex justify-center">
+          <LanguageToggle />
+        </div>
         <div className="inline-flex items-center gap-1">
           {['red', 'orange', 'yellow', 'green', 'blue', 'purple'].map((color, i) => (
             <div
@@ -690,7 +698,7 @@ export function Lobby({ onNavigate }: LobbyProps) {
           ))}
         </div>
         <h1 className="font-display font-bold text-3xl tracking-tight">Qwirkle Online</h1>
-        <p className="text-muted-foreground text-sm">Graj online lub z komputerem</p>
+        <p className="text-muted-foreground text-sm">{t('lobbySubtitle')}</p>
       </div>
 
       {/* Main actions */}
@@ -704,8 +712,8 @@ export function Lobby({ onNavigate }: LobbyProps) {
             <Plus size={24} />
           </div>
           <div className="text-left">
-            <div className="text-sm font-semibold">Stwórz pokój</div>
-            <div className="text-xs opacity-80">Zaproś graczy lub dodaj AI</div>
+            <div className="text-sm font-semibold">{t('createRoom')}</div>
+            <div className="text-xs opacity-80">{t('createRoomDesc')}</div>
           </div>
         </button>
 
@@ -718,8 +726,8 @@ export function Lobby({ onNavigate }: LobbyProps) {
             <LogIn size={24} className="text-accent" />
           </div>
           <div className="text-left">
-            <div className="text-sm font-semibold">Dołącz do pokoju</div>
-            <div className="text-xs text-muted-foreground">Wpisz 6-cyfrowy kod</div>
+            <div className="text-sm font-semibold">{t('joinRoom')}</div>
+            <div className="text-xs text-muted-foreground">{t('joinRoomDesc')}</div>
           </div>
         </button>
 
@@ -732,8 +740,8 @@ export function Lobby({ onNavigate }: LobbyProps) {
             <Gamepad2 size={24} className="text-green-600 dark:text-green-400" />
           </div>
           <div className="text-left">
-            <div className="text-sm font-semibold">Moje gry</div>
-            <div className="text-xs text-muted-foreground">Aktywne i zakończone rozgrywki</div>
+            <div className="text-sm font-semibold">{t('myGames')}</div>
+            <div className="text-xs text-muted-foreground">{t('myGamesDesc')}</div>
           </div>
         </button>
       </div>
@@ -746,7 +754,7 @@ export function Lobby({ onNavigate }: LobbyProps) {
           data-testid="leaderboard"
         >
           <Trophy size={22} className="mx-auto mb-1.5 text-yellow-500" />
-          <div className="text-xs font-medium">Ranking</div>
+          <div className="text-xs font-medium">{t('ranking')}</div>
         </button>
         <button
           onClick={() => onNavigate('history')}
@@ -754,7 +762,7 @@ export function Lobby({ onNavigate }: LobbyProps) {
           data-testid="game-history"
         >
           <History size={22} className="mx-auto mb-1.5 text-blue-500" />
-          <div className="text-xs font-medium">Historia</div>
+          <div className="text-xs font-medium">{t('history')}</div>
         </button>
         <button
           onClick={() => onNavigate('rules')}
@@ -762,7 +770,7 @@ export function Lobby({ onNavigate }: LobbyProps) {
           data-testid="rules"
         >
           <BookOpen size={22} className="mx-auto mb-1.5 text-emerald-500" />
-          <div className="text-xs font-medium">Zasady</div>
+          <div className="text-xs font-medium">{t('rules')}</div>
         </button>
         <button
           onClick={() => onNavigate('about')}
@@ -770,7 +778,7 @@ export function Lobby({ onNavigate }: LobbyProps) {
           data-testid="about"
         >
           <Info size={22} className="mx-auto mb-1.5 text-violet-500" />
-          <div className="text-xs font-medium">O grze</div>
+          <div className="text-xs font-medium">{t('about')}</div>
         </button>
       </div>
 

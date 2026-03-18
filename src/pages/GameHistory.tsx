@@ -4,13 +4,16 @@ import { GameHistoryEntry } from '../game/types';
 import { cn } from '../utils/cn';
 import { ArrowLeft, History, Clock, Users, Flame, Trophy } from 'lucide-react';
 import { format } from 'date-fns';
-import { pl } from 'date-fns/locale';
+import { pl as plLocale } from 'date-fns/locale';
+import { enGB } from 'date-fns/locale';
+import { useTranslation } from '../i18n/LanguageContext';
 
 interface GameHistoryProps {
   onBack: () => void;
 }
 
 export function GameHistory({ onBack }: GameHistoryProps) {
+  const { t, lang } = useTranslation();
   const [entries, setEntries] = useState<GameHistoryEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -28,15 +31,17 @@ export function GameHistory({ onBack }: GameHistoryProps) {
     setIsLoading(false);
   };
 
+  const dateLocale = lang === 'pl' ? plLocale : enGB;
+
   return (
     <div className="max-w-lg mx-auto space-y-6">
       <button onClick={onBack} className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors text-sm">
-        <ArrowLeft size={16} /> Wróć
+        <ArrowLeft size={16} /> {t('back')}
       </button>
 
       <div className="text-center space-y-2">
         <History size={40} className="mx-auto text-blue-500" />
-        <h2 className="font-display font-bold text-xl">Historia gier</h2>
+        <h2 className="font-display font-bold text-xl">{t('historyTitle')}</h2>
       </div>
 
       {isLoading ? (
@@ -48,8 +53,8 @@ export function GameHistory({ onBack }: GameHistoryProps) {
       ) : entries.length === 0 ? (
         <div className="text-center py-12 text-muted-foreground">
           <Clock size={48} className="mx-auto mb-3 opacity-50" />
-          <p className="text-sm">Brak historii</p>
-          <p className="text-xs mt-1">Twoje gry pojawią się tutaj</p>
+          <p className="text-sm">{t('noHistory')}</p>
+          <p className="text-xs mt-1">{t('noHistoryHint')}</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -61,10 +66,10 @@ export function GameHistory({ onBack }: GameHistoryProps) {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <Clock size={12} />
-                  {format(new Date(entry.date), 'd MMM yyyy, HH:mm', { locale: pl })}
+                  {format(new Date(entry.date), 'd MMM yyyy, HH:mm', { locale: dateLocale })}
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <span className="text-xs text-muted-foreground">Pokój:</span>
+                  <span className="text-xs text-muted-foreground">{t('room')}</span>
                   <span className="text-xs font-mono font-medium">{entry.roomCode}</span>
                 </div>
               </div>
@@ -99,9 +104,9 @@ export function GameHistory({ onBack }: GameHistoryProps) {
 
               <div className="flex items-center gap-3 text-xs text-muted-foreground pt-1 border-t border-border/30">
                 <span className="flex items-center gap-1">
-                  <Users size={11} /> {entry.players.length} graczy
+                  <Users size={11} /> {entry.players.length} {t('playersLabel')}
                 </span>
-                <span>{entry.totalMoves} ruchów</span>
+                <span>{entry.totalMoves} {t('moves')}</span>
                 {entry.hadQwirkle && (
                   <span className="flex items-center gap-0.5 text-primary font-medium">
                     <Flame size={11} /> Qwirkle
