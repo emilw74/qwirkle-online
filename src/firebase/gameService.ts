@@ -485,42 +485,52 @@ export async function checkRoomExists(roomCode: string): Promise<boolean> {
 }
 
 // --- Delete game (by host) ---
-// Marks game as deleted in history and all player sessions, removes the room
+// For bot games: permanent delete (remove from history + all sessions immediately)
+// For human-only games: soft-delete (mark as deleted, auto-cleanup after 7 days)
 
 export async function deleteGame(
   roomCode: string,
-  deletedByNickname: string
+  deletedByNickname: string,
+  permanent: boolean = false
 ): Promise<void> {
   const now = Date.now();
 
   // 1. Remove the room itself
   await remove(ref(db, `rooms/${roomCode}`)).catch(() => {});
 
-  // 2. Mark game as deleted in gameHistory
+  // 2. Handle gameHistory entries
   const historySnapshot = await get(ref(db, 'gameHistory'));
   if (historySnapshot.exists()) {
     const data = historySnapshot.val() as Record<string, any>;
     for (const [key, entry] of Object.entries(data)) {
       if (entry.roomCode === roomCode) {
-        await update(ref(db, `gameHistory/${key}`), {
-          deletedAt: now,
-          deletedBy: deletedByNickname,
-        });
+        if (permanent) {
+          await remove(ref(db, `gameHistory/${key}`)).catch(() => {});
+        } else {
+          await update(ref(db, `gameHistory/${key}`), {
+            deletedAt: now,
+            deletedBy: deletedByNickname,
+          });
+        }
       }
     }
   }
 
-  // 3. Mark as deleted in all player sessions that reference this room
+  // 3. Handle all player sessions that reference this room
   const sessionsSnapshot = await get(ref(db, 'playerSessions'));
   if (sessionsSnapshot.exists()) {
     const allSessions = sessionsSnapshot.val() as Record<string, Record<string, any>>;
     for (const [uid, rooms] of Object.entries(allSessions)) {
       if (rooms[roomCode]) {
-        await update(ref(db, `playerSessions/${uid}/${roomCode}`), {
-          status: 'finished',
-          deletedAt: now,
-          deletedBy: deletedByNickname,
-        });
+        if (permanent) {
+          await remove(ref(db, `playerSessions/${uid}/${roomCode}`)).catch(() => {});
+        } else {
+          await update(ref(db, `playerSessions/${uid}/${roomCode}`), {
+            status: 'finished',
+            deletedAt: now,
+            deletedBy: deletedByNickname,
+          });
+        }
       }
     }
   }

@@ -158,7 +158,7 @@ export function Lobby({ onNavigate }: LobbyProps) {
   const [selectedFinished, setSelectedFinished] = useState<PlayerSession | null>(null);
 
   // Delete game state
-  const [deleteConfirm, setDeleteConfirm] = useState<{ roomCode: string; gameName: string } | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ roomCode: string; gameName: string; hasBots: boolean } | null>(null);
   const [deleting, setDeleting] = useState(false);
 
   const currentNick = nickname || t('defaultPlayer');
@@ -284,22 +284,31 @@ export function Lobby({ onNavigate }: LobbyProps) {
     if (!deleteConfirm) return;
     setDeleting(true);
     try {
-      await deleteGame(deleteConfirm.roomCode, currentNick);
-      // Update local state — mark sessions as deleted
-      const now = Date.now();
-      setPlayerGames(prev => ({
-        active: prev.active.filter(a => a.session.roomCode !== deleteConfirm.roomCode),
-        finished: prev.finished.map(s =>
-          s.roomCode === deleteConfirm.roomCode
-            ? { ...s, deletedAt: now, deletedBy: currentNick }
-            : s
-        ).concat(
-          // Move any active session that was deleted to finished
-          prev.active
-            .filter(a => a.session.roomCode === deleteConfirm.roomCode)
-            .map(a => ({ ...a.session, status: 'finished' as const, deletedAt: now, deletedBy: currentNick }))
-        ),
-      }));
+      const permanent = deleteConfirm.hasBots;
+      await deleteGame(deleteConfirm.roomCode, currentNick, permanent);
+
+      if (permanent) {
+        // Bot games: remove completely from local state
+        setPlayerGames(prev => ({
+          active: prev.active.filter(a => a.session.roomCode !== deleteConfirm.roomCode),
+          finished: prev.finished.filter(s => s.roomCode !== deleteConfirm.roomCode),
+        }));
+      } else {
+        // Human games: mark as deleted in local state
+        const now = Date.now();
+        setPlayerGames(prev => ({
+          active: prev.active.filter(a => a.session.roomCode !== deleteConfirm.roomCode),
+          finished: prev.finished.map(s =>
+            s.roomCode === deleteConfirm.roomCode
+              ? { ...s, deletedAt: now, deletedBy: currentNick }
+              : s
+          ).concat(
+            prev.active
+              .filter(a => a.session.roomCode === deleteConfirm.roomCode)
+              .map(a => ({ ...a.session, status: 'finished' as const, deletedAt: now, deletedBy: currentNick }))
+          ),
+        }));
+      }
       setDeleteConfirm(null);
     } catch (e) {
       console.error('Error deleting game:', e);
@@ -361,7 +370,7 @@ export function Lobby({ onNavigate }: LobbyProps) {
         <p className="text-sm text-muted-foreground">
           <strong className="text-foreground">{deleteConfirm.gameName}</strong>
         </p>
-        <p className="text-sm text-muted-foreground">{t('deleteGameConfirmMsg')}</p>
+        <p className="text-sm text-muted-foreground">{t(deleteConfirm.hasBots ? 'deleteGameConfirmMsgPermanent' : 'deleteGameConfirmMsg')}</p>
         <div className="flex gap-2">
           <button
             onClick={() => setDeleteConfirm(null)}
@@ -472,7 +481,7 @@ export function Lobby({ onNavigate }: LobbyProps) {
                         {isHost && (
                           <div className="border-t border-border/30 px-3.5 py-1.5 flex justify-end">
                             <button
-                              onClick={() => setDeleteConfirm({ roomCode: session.roomCode, gameName: session.gameName })}
+                              onClick={() => setDeleteConfirm({ roomCode: session.roomCode, gameName: session.gameName, hasBots: gameState.players.some(p => p.isAI) })}
                               className="text-xs text-muted-foreground hover:text-destructive transition-colors flex items-center gap-1"
                             >
                               <Trash2 size={11} /> {t('deleteGame')}
@@ -575,7 +584,7 @@ export function Lobby({ onNavigate }: LobbyProps) {
                             <div className="border-t border-border/30 px-3.5 py-1.5 flex justify-end gap-3">
                               {isHost && (
                                 <button
-                                  onClick={() => setDeleteConfirm({ roomCode: session.roomCode, gameName: session.gameName })}
+                                  onClick={() => setDeleteConfirm({ roomCode: session.roomCode, gameName: session.gameName, hasBots: (session.finalPlayers || []).some(p => p.isAI) })}
                                   className="text-xs text-muted-foreground hover:text-destructive transition-colors flex items-center gap-1"
                                 >
                                   <Trash2 size={11} /> {t('deleteGame')}
