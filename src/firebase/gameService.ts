@@ -118,8 +118,19 @@ export async function placeTiles(
   await set(ref(db, `rooms/${roomCode}`), stripUndefined(updatedState));
 
   if (updatedState.phase === 'finished') {
-    await saveGameHistory(updatedState);
-    await updateLeaderboard(updatedState);
+    console.log('[placeTiles] Game finished, saving history & leaderboard for room:', roomCode);
+    try {
+      await saveGameHistory(updatedState);
+      console.log('[placeTiles] saveGameHistory OK');
+    } catch (e) {
+      console.error('[placeTiles] saveGameHistory FAILED:', e);
+    }
+    try {
+      await updateLeaderboard(updatedState);
+      console.log('[placeTiles] updateLeaderboard OK');
+    } catch (e) {
+      console.error('[placeTiles] updateLeaderboard FAILED:', e);
+    }
     // Mark all human player sessions as finished (using uid = playerId)
     for (const p of updatedState.players) {
       if (!p.isAI) {
@@ -159,8 +170,19 @@ export async function passPlayerTurn(
   await set(ref(db, `rooms/${roomCode}`), stripUndefined(updatedState));
 
   if (updatedState.phase === 'finished') {
-    await saveGameHistory(updatedState);
-    await updateLeaderboard(updatedState);
+    console.log('[passPlayerTurn] Game finished, saving history & leaderboard for room:', roomCode);
+    try {
+      await saveGameHistory(updatedState);
+      console.log('[passPlayerTurn] saveGameHistory OK');
+    } catch (e) {
+      console.error('[passPlayerTurn] saveGameHistory FAILED:', e);
+    }
+    try {
+      await updateLeaderboard(updatedState);
+      console.log('[passPlayerTurn] updateLeaderboard OK');
+    } catch (e) {
+      console.error('[passPlayerTurn] updateLeaderboard FAILED:', e);
+    }
     for (const p of updatedState.players) {
       if (!p.isAI) {
         await markSessionFinished(p.id, roomCode, updatedState).catch(() => {});
@@ -454,6 +476,8 @@ export async function ensureGameFinalized(
 ): Promise<void> {
   if (gameState.phase !== 'finished') return;
 
+  console.log('[ensureGameFinalized] Starting for room:', gameState.roomCode);
+
   try {
     // 1. Check if gameHistory already has this game (by roomCode)
     const historySnapshot = await get(ref(db, 'gameHistory'));
@@ -464,17 +488,22 @@ export async function ensureGameFinalized(
         (entry: any) => entry.roomCode === gameState.roomCode
       );
     }
+    console.log('[ensureGameFinalized] alreadyInHistory:', alreadyInHistory);
 
     if (!alreadyInHistory) {
-      await saveGameHistory(gameState);
-    }
+      try {
+        await saveGameHistory(gameState);
+        console.log('[ensureGameFinalized] saveGameHistory OK');
+      } catch (e) {
+        console.error('[ensureGameFinalized] saveGameHistory FAILED:', e);
+      }
 
-    // 2. Check if leaderboard has entry for current user with matching or higher gamesPlayed
-    // We always call updateLeaderboard — it's safe to call even if already done,
-    // but to avoid double-counting, check if this game was already counted.
-    // Simple heuristic: if history was missing, leaderboard is also missing.
-    if (!alreadyInHistory) {
-      await updateLeaderboard(gameState);
+      try {
+        await updateLeaderboard(gameState);
+        console.log('[ensureGameFinalized] updateLeaderboard OK');
+      } catch (e) {
+        console.error('[ensureGameFinalized] updateLeaderboard FAILED:', e);
+      }
     }
 
     // 3. Mark sessions finished for all human players
@@ -483,8 +512,9 @@ export async function ensureGameFinalized(
         await markSessionFinished(p.id, gameState.roomCode, gameState).catch(() => {});
       }
     }
+    console.log('[ensureGameFinalized] Done');
   } catch (e) {
-    console.error('ensureGameFinalized error:', e);
+    console.error('[ensureGameFinalized] error:', e);
   }
 }
 
