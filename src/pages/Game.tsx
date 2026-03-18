@@ -7,7 +7,7 @@ import { GameActions } from '../components/GameActions';
 import { TileView } from '../components/TileView';
 import {
   placeTiles, swapPlayerTiles, passPlayerTurn, executeAITurn,
-  subscribeToRoom
+  subscribeToRoom, ensureGameFinalized
 } from '../firebase/gameService';
 import { Tile, PlacedTile, Position, GameState } from '../game/types';
 import { validateMove, boardFromRecord } from '../game/engine';
@@ -71,6 +71,15 @@ export function Game({ onNavigate }: GameProps) {
       if (aiTimeoutRef.current) clearTimeout(aiTimeoutRef.current);
     };
   }, [gameState?.currentPlayerIndex, gameState?.phase, roomCode]);
+
+  // Ensure game finalization (leaderboard, history, sessions) — idempotent fallback
+  const finalizedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!gameState || gameState.phase !== 'finished' || !roomCode || !playerId) return;
+    if (finalizedRef.current === roomCode) return; // already handled this room
+    finalizedRef.current = roomCode;
+    ensureGameFinalized(gameState, playerId);
+  }, [gameState?.phase, roomCode, playerId]);
 
   // Show last move info — stays visible until the next player makes their move
   const prevMovesLengthRef = useRef(gameState?.moves?.length || 0);

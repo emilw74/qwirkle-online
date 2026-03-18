@@ -473,6 +473,48 @@ export async function getGamesForPlayer(
   return { active, finished };
 }
 
+// --- Ensure game is properly finalized (idempotent fallback) ---
+
+export async function ensureGameFinalized(
+  gameState: GameState,
+  currentUid: string
+): Promise<void> {
+  if (gameState.phase !== 'finished') return;
+
+  try {
+    // 1. Check if gameHistory already has this game (by roomCode)
+    const historySnapshot = await get(ref(db, 'gameHistory'));
+    let alreadyInHistory = false;
+    if (historySnapshot.exists()) {
+      const data = historySnapshot.val() as Record<string, any>;
+      alreadyInHistory = Object.values(data).some(
+        (entry: any) => entry.roomCode === gameState.roomCode
+      );
+    }
+
+    if (!alreadyInHistory) {
+      await saveGameHistory(gameState);
+    }
+
+    // 2. Check if leaderboard has entry for current user with matching or higher gamesPlayed
+    // We always call updateLeaderboard — it's safe to call even if already done,
+    // but to avoid double-counting, check if this game was already counted.
+    // Simple heuristic: if history was missing, leaderboard is also missing.
+    if (!alreadyInHistory) {
+      await updateLeaderboard(gameState);
+    }
+
+    // 3. Mark sessions finished for all human players
+    for (const p of gameState.players) {
+      if (!p.isAI) {
+        await markSessionFinished(p.id, gameState.roomCode, gameState).catch(() => {});
+      }
+    }
+  } catch (e) {
+    console.error('ensureGameFinalized error:', e);
+  }
+}
+
 // --- Room cleanup ---
 
 export async function deleteRoom(roomCode: string): Promise<void> {
