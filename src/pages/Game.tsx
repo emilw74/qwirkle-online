@@ -89,7 +89,7 @@ export function Game({ onNavigate }: GameProps) {
 
   if (!gameState || !playerId || !roomCode) {
     return (
-      <div className="flex flex-col items-center justify-center h-64 gap-4">
+      <div className="flex flex-col items-center justify-center h-full gap-4">
         <p className="text-muted-foreground">Brak danych gry</p>
         <button onClick={() => onNavigate('lobby')} className="text-primary hover:underline text-sm">
           Wróć do lobby
@@ -192,7 +192,7 @@ export function Game({ onNavigate }: GameProps) {
   if (gameState.phase === 'finished') {
     const sorted = [...gameState.players].sort((a, b) => b.score - a.score);
     return (
-      <div className="max-w-lg mx-auto space-y-6 py-8">
+      <div className="max-w-lg mx-auto space-y-4 py-4 px-4 overflow-y-auto h-full">
         <div className="text-center space-y-3">
           <Trophy size={48} className="mx-auto text-yellow-500" />
           <h2 className="font-display font-bold text-2xl">Koniec gry</h2>
@@ -250,7 +250,7 @@ export function Game({ onNavigate }: GameProps) {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100dvh-60px)] max-h-[calc(100dvh-60px)]">
+    <div className="flex flex-col h-full">
       {/* Compact top bar: scores inline */}
       <div className="flex-shrink-0 px-2 py-1.5">
         <ScoreBoard

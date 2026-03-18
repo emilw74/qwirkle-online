@@ -27,11 +27,22 @@ function App() {
     setPage('lobby');
   };
 
+  const isGame = page === 'game';
+
   return (
-    <div className="min-h-dvh bg-background text-foreground">
-      {/* Header */}
-      <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-md border-b border-border/50">
-        <div className="max-w-4xl mx-auto flex items-center justify-between px-4 h-14">
+    <div className={cn(
+      'bg-background text-foreground',
+      isGame ? 'h-dvh overflow-hidden flex flex-col' : 'min-h-dvh',
+    )}>
+      {/* Header — compact on game page */}
+      <header className={cn(
+        'flex-shrink-0 z-40 bg-background/80 backdrop-blur-md border-b border-border/50',
+        !isGame && 'sticky top-0',
+      )}>
+        <div className={cn(
+          'max-w-4xl mx-auto flex items-center justify-between px-3',
+          isGame ? 'h-10' : 'h-14 px-4',
+        )}>
           <button
             onClick={handleNavigateHome}
             className="flex items-center gap-2 hover:opacity-80 transition-opacity"
@@ -40,63 +51,59 @@ function App() {
               {['#e63946', '#f77f00', '#fcbf49', '#2a9d8f', '#457b9d', '#7b2cbf'].map((color, i) => (
                 <div
                   key={i}
-                  className="w-3 h-3 rounded-sm"
+                  className={cn('rounded-sm', isGame ? 'w-2.5 h-2.5' : 'w-3 h-3')}
                   style={{ backgroundColor: color }}
                 />
               ))}
             </div>
-            <span className="font-display font-bold text-sm hidden sm:inline">Qwirkle</span>
+            {!isGame && (
+              <span className="font-display font-bold text-sm hidden sm:inline">Qwirkle</span>
+            )}
           </button>
 
-          <div className="flex items-center gap-2">
-            {page === 'game' && (
+          <div className="flex items-center gap-1">
+            {isGame && (
               <button
                 onClick={handleNavigateHome}
-                className="p-2 rounded-lg hover:bg-muted transition-colors"
+                className="p-1.5 rounded-lg hover:bg-muted transition-colors"
                 title="Wróć do lobby"
               >
-                <Home size={18} />
+                <Home size={16} />
               </button>
             )}
             <button
               onClick={toggleDarkMode}
-              className="p-2 rounded-lg hover:bg-muted transition-colors"
+              className={cn(
+                'rounded-lg hover:bg-muted transition-colors',
+                isGame ? 'p-1.5' : 'p-2',
+              )}
               aria-label={isDarkMode ? 'Tryb jasny' : 'Tryb ciemny'}
               data-testid="theme-toggle"
             >
-              {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
+              {isDarkMode ? <Sun size={isGame ? 16 : 18} /> : <Moon size={isGame ? 16 : 18} />}
             </button>
           </div>
         </div>
       </header>
 
       {/* Main content */}
-      <main className="max-w-4xl mx-auto px-4 py-6">
-        {page === 'lobby' && (
-          <Lobby onNavigate={(p) => setPage(p)} />
-        )}
-        {page === 'game' && (
+      {isGame ? (
+        <div className="flex-1 min-h-0">
           <Game onNavigate={(p) => setPage(p)} />
-        )}
-        {page === 'leaderboard' && (
-          <Leaderboard onBack={() => setPage('lobby')} />
-        )}
-        {page === 'history' && (
-          <GameHistory onBack={() => setPage('lobby')} />
-        )}
-      </main>
-
-      {/* Footer */}
-      <footer className="text-center py-4 text-xs text-muted-foreground border-t border-border/30">
-        <a
-          href="https://www.perplexity.ai/computer"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="hover:text-foreground transition-colors"
-        >
-          Created with Perplexity Computer
-        </a>
-      </footer>
+        </div>
+      ) : (
+        <main className="max-w-4xl mx-auto px-4 py-6">
+          {page === 'lobby' && (
+            <Lobby onNavigate={(p) => setPage(p)} />
+          )}
+          {page === 'leaderboard' && (
+            <Leaderboard onBack={() => setPage('lobby')} />
+          )}
+          {page === 'history' && (
+            <GameHistory onBack={() => setPage('lobby')} />
+          )}
+        </main>
+      )}
     </div>
   );
 }
