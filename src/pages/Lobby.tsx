@@ -481,7 +481,7 @@ export function Lobby({ onNavigate }: LobbyProps) {
                         {isHost && (
                           <div className="border-t border-border/30 px-3.5 py-1.5 flex justify-end">
                             <button
-                              onClick={() => setDeleteConfirm({ roomCode: session.roomCode, gameName: session.gameName, hasBots: gameState.players.some(p => p.isAI) })}
+                              onClick={() => setDeleteConfirm({ roomCode: session.roomCode, gameName: session.gameName, hasBots: gameState.players.filter(p => !p.isAI).length <= 1 && gameState.players.some(p => p.isAI) })}
                               className="text-xs text-muted-foreground hover:text-destructive transition-colors flex items-center gap-1"
                             >
                               <Trash2 size={11} /> {t('deleteGame')}
@@ -584,7 +584,7 @@ export function Lobby({ onNavigate }: LobbyProps) {
                             <div className="border-t border-border/30 px-3.5 py-1.5 flex justify-end gap-3">
                               {isHost && (
                                 <button
-                                  onClick={() => setDeleteConfirm({ roomCode: session.roomCode, gameName: session.gameName, hasBots: (session.finalPlayers || []).some(p => p.isAI) })}
+                                  onClick={() => setDeleteConfirm({ roomCode: session.roomCode, gameName: session.gameName, hasBots: (session.finalPlayers || []).filter(p => !p.isAI).length <= 1 && (session.finalPlayers || []).some(p => p.isAI) })}
                                   className="text-xs text-muted-foreground hover:text-destructive transition-colors flex items-center gap-1"
                                 >
                                   <Trash2 size={11} /> {t('deleteGame')}

@@ -450,8 +450,8 @@ export const translations = {
     en: 'This game will be marked as deleted for all players and will disappear from history after 7 days.',
   },
   deleteGameConfirmMsgPermanent: {
-    pl: 'Ta gra z botem zostanie trwale usunięta z historii dla wszystkich graczy.',
-    en: 'This bot game will be permanently deleted from history for all players.',
+    pl: 'Ta gra z botem zostanie trwale usunięta z historii.',
+    en: 'This bot game will be permanently deleted from history.',
   },
   deleteGameConfirm: {
     pl: 'Usuń',
