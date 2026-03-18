@@ -51,12 +51,19 @@ export function ScoreBoard({ players, currentPlayerIndex, myPlayerId, bagSize }:
               )}
             </div>
 
-            <span className={cn(
-              'font-display font-bold tabular-nums flex-shrink-0',
-              isLeading ? 'text-primary' : 'text-foreground',
-            )}>
-              {player.score}
-            </span>
+            <div className="flex items-center gap-1 flex-shrink-0">
+              <span className={cn(
+                'font-display font-bold tabular-nums',
+                isLeading ? 'text-primary' : 'text-foreground',
+              )}>
+                {player.score}
+              </span>
+              {bagSize === 0 && (
+                <span className="text-[9px] px-1 py-0.5 rounded bg-muted/80 text-muted-foreground tabular-nums" title={t('tilesLeft')}>
+                  {player.hand?.length || 0}✦
+                </span>
+              )}
+            </div>
           </div>
         );
       })}

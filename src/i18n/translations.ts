@@ -436,6 +436,12 @@ export const translations = {
     en: 'Qwirkle is a trademark of MindWare. This app is an independent hobby project and is not affiliated with MindWare.',
   },
 
+  // ===== ScoreBoard =====
+  tilesLeft: {
+    pl: 'Pozostałe kafelki',
+    en: 'Tiles left',
+  },
+
   // ===== Game deletion =====
   deleteGame: {
     pl: 'Usuń grę',
