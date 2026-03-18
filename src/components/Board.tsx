@@ -22,6 +22,8 @@ export function Board({ board, onCellClick, selectedTile, placedThisTurn, isMyTu
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
+  // Pinch-to-zoom state
+  const pinchRef = useRef<{ startDist: number; startZoom: number; midX: number; midY: number } | null>(null);
   const CELL_SIZE = 52;
   const GAP = 4;
 
@@ -75,8 +77,22 @@ export function Board({ board, onCellClick, selectedTile, placedThisTurn, isMyTu
 
   const handleMouseUp = () => setIsPanning(false);
 
+  const getTouchDist = (t1: React.Touch, t2: React.Touch) =>
+    Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+
   const handleTouchStart = (e: React.TouchEvent) => {
-    if (e.touches.length === 1 && !selectedTile) {
+    if (e.touches.length === 2) {
+      // Start pinch-to-zoom
+      setIsPanning(false);
+      const dist = getTouchDist(e.touches[0], e.touches[1]);
+      pinchRef.current = {
+        startDist: dist,
+        startZoom: zoom,
+        midX: (e.touches[0].clientX + e.touches[1].clientX) / 2,
+        midY: (e.touches[0].clientY + e.touches[1].clientY) / 2,
+      };
+    } else if (e.touches.length === 1 && !selectedTile) {
+      pinchRef.current = null;
       setIsPanning(true);
       setPanStart({
         x: e.touches[0].clientX - panOffset.x,
@@ -86,7 +102,12 @@ export function Board({ board, onCellClick, selectedTile, placedThisTurn, isMyTu
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    if (isPanning && e.touches.length === 1) {
+    if (e.touches.length === 2 && pinchRef.current) {
+      const dist = getTouchDist(e.touches[0], e.touches[1]);
+      const scale = dist / pinchRef.current.startDist;
+      const newZoom = Math.min(Math.max(pinchRef.current.startZoom * scale, 0.4), 2);
+      setZoom(newZoom);
+    } else if (isPanning && e.touches.length === 1) {
       setPanOffset({
         x: e.touches[0].clientX - panStart.x,
         y: e.touches[0].clientY - panStart.y,
@@ -94,7 +115,21 @@ export function Board({ board, onCellClick, selectedTile, placedThisTurn, isMyTu
     }
   };
 
-  const handleTouchEnd = () => setIsPanning(false);
+  const handleTouchEnd = () => {
+    setIsPanning(false);
+    pinchRef.current = null;
+  };
+
+  // Prevent browser pinch-zoom on the board container (needs non-passive listener)
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const preventDefault = (e: TouchEvent) => {
+      if (e.touches.length >= 2) e.preventDefault();
+    };
+    el.addEventListener('touchmove', preventDefault, { passive: false });
+    return () => el.removeEventListener('touchmove', preventDefault);
+  }, []);
 
   const resetView = () => {
     setZoom(1);
@@ -139,14 +174,14 @@ export function Board({ board, onCellClick, selectedTile, placedThisTurn, isMyTu
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
-        style={{ cursor: isPanning ? 'grabbing' : selectedTile ? 'crosshair' : 'grab' }}
+        style={{ cursor: isPanning ? 'grabbing' : selectedTile ? 'crosshair' : 'grab', touchAction: 'none' }}
       >
         <div
           className="relative"
           style={{
             transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoom})`,
             transformOrigin: 'center center',
-            transition: isPanning ? 'none' : 'transform 0.2s ease',
+            transition: isPanning || pinchRef.current ? 'none' : 'transform 0.2s ease',
           }}
         >
           <div
