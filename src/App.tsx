@@ -3,6 +3,7 @@ import { Lobby } from './pages/Lobby';
 import { Game } from './pages/Game';
 import { Leaderboard } from './pages/Leaderboard';
 import { GameHistory } from './pages/GameHistory';
+import { Rules } from './pages/Rules';
 import { AuthGate } from './components/AuthGate';
 import { useGameStore } from './hooks/useGameStore';
 import { signOut } from './firebase/authService';
@@ -10,7 +11,7 @@ import { cn } from './utils/cn';
 import { Moon, Sun, Home, LogOut, Pencil } from 'lucide-react';
 import { UserProfile, updateNickname } from './firebase/authService';
 
-type Page = 'lobby' | 'game' | 'leaderboard' | 'history';
+type Page = 'lobby' | 'game' | 'leaderboard' | 'history' | 'rules';
 
 function AppContent({ profile }: { profile: UserProfile }) {
   const [page, setPage] = useState<Page>('lobby');
@@ -214,6 +215,9 @@ function AppContent({ profile }: { profile: UserProfile }) {
           )}
           {page === 'history' && (
             <GameHistory onBack={() => setPage('lobby')} />
+          )}
+          {page === 'rules' && (
+            <Rules onBack={() => setPage('lobby')} />
           )}
         </main>
       )}

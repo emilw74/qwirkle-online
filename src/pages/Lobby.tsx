@@ -9,14 +9,14 @@ import {
 import { cn } from '../utils/cn';
 import {
   Users, Bot, Play, Plus, LogIn, Trophy, History, Copy, Check,
-  ArrowLeft, Gamepad2, RefreshCw, ChevronRight, X,
+  ArrowLeft, Gamepad2, RefreshCw, ChevronRight, X, BookOpen,
 } from 'lucide-react';
 import { AILevel, GameState, Tile } from '../game/types';
 import { TileView } from '../components/TileView';
 import { posKey, parseKey } from '../game/engine';
 
 interface LobbyProps {
-  onNavigate: (page: 'game' | 'leaderboard' | 'history') => void;
+  onNavigate: (page: 'game' | 'leaderboard' | 'history' | 'rules') => void;
 }
 
 // --- Mini Board for finished game detail ---
@@ -739,7 +739,7 @@ export function Lobby({ onNavigate }: LobbyProps) {
       </div>
 
       {/* Secondary actions */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-3 gap-3">
         <button
           onClick={() => onNavigate('leaderboard')}
           className="p-4 rounded-xl bg-card border border-border/50 hover:bg-muted/50 transition-all text-center shadow-sm"
@@ -754,7 +754,15 @@ export function Lobby({ onNavigate }: LobbyProps) {
           data-testid="game-history"
         >
           <History size={24} className="mx-auto mb-2 text-blue-500" />
-          <div className="text-sm font-medium">Historia gier</div>
+          <div className="text-sm font-medium">Historia</div>
+        </button>
+        <button
+          onClick={() => onNavigate('rules')}
+          className="p-4 rounded-xl bg-card border border-border/50 hover:bg-muted/50 transition-all text-center shadow-sm"
+          data-testid="rules"
+        >
+          <BookOpen size={24} className="mx-auto mb-2 text-emerald-500" />
+          <div className="text-sm font-medium">Zasady</div>
         </button>
       </div>
 

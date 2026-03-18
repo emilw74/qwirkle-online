@@ -5,7 +5,7 @@ import {
   onAuthStateChanged,
   User,
 } from 'firebase/auth';
-import { ref, get, set, update } from 'firebase/database';
+import { ref, get, set, update, child } from 'firebase/database';
 
 export interface UserProfile {
   uid: string;
@@ -56,13 +56,42 @@ export async function getUserProfile(uid: string): Promise<UserProfile | null> {
   return snapshot.val() as UserProfile;
 }
 
-// Update nickname
+// Update nickname — also updates nick in all active rooms
 export async function updateNickname(uid: string, nickname: string): Promise<void> {
   const trimmed = nickname.trim();
   if (!trimmed || trimmed.length > 16) {
     throw new Error('Nick musi mieć 1-16 znaków');
   }
   await update(ref(db, `profiles/${uid}`), { nickname: trimmed });
+
+  // Update nickname in all active rooms where this player is participating
+  try {
+    const sessionsSnap = await get(ref(db, `playerSessions/${uid}`));
+    if (!sessionsSnap.exists()) return;
+    const sessions = sessionsSnap.val() as Record<string, { roomCode: string; status: string }>;
+
+    for (const [, session] of Object.entries(sessions)) {
+      if (session.status !== 'active') continue;
+
+      const roomSnap = await get(ref(db, `rooms/${session.roomCode}`));
+      if (!roomSnap.exists()) continue;
+
+      const room = roomSnap.val();
+      const players = room.players || [];
+      let updated = false;
+      for (let i = 0; i < players.length; i++) {
+        if (players[i].id === uid) {
+          players[i].nickname = trimmed;
+          updated = true;
+        }
+      }
+      if (updated) {
+        await update(ref(db, `rooms/${session.roomCode}`), { players });
+      }
+    }
+  } catch (e) {
+    console.error('Error updating nickname in rooms:', e);
+  }
 }
 
 // Sign out
