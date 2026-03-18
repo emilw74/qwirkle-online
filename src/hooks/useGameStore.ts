@@ -27,6 +27,7 @@ interface GameStore {
   undoLastPlacement: () => void;
   clearPlacements: () => void;
   toggleDarkMode: () => void;
+  leaveGame: () => void;
   reset: () => void;
 }
 
@@ -81,6 +82,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
     return { isDarkMode: newMode };
   }),
 
+  // Soft reset: keeps nickname for multi-game flow
+  leaveGame: () => set({
+    playerId: null,
+    roomCode: null,
+    gameState: null,
+    selectedTiles: [],
+    placedTilesThisTurn: [],
+  }),
+  // Hard reset: clears everything
   reset: () => set({
     playerId: null,
     nickname: null,

@@ -5,8 +5,8 @@ const COLOR_MAP: Record<TileColor, string> = {
   red: '#e63946',
   orange: '#f77f00',
   yellow: '#fcbf49',
-  green: '#2a9d8f',
-  blue: '#457b9d',
+  green: '#2db84d',
+  blue: '#3a7bd5',
   purple: '#7b2cbf',
 };
 

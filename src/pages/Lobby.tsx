@@ -1,18 +1,145 @@
 import { useState } from 'react';
 import { useGameStore } from '../hooks/useGameStore';
-import { createRoom, joinRoom, addAIToRoom, startGameInRoom, subscribeToRoom } from '../firebase/gameService';
+import {
+  createRoom, joinRoom, addAIToRoom, startGameInRoom, subscribeToRoom,
+  savePlayerSession, updateSessionGameName, getGamesForPlayer,
+  removePlayerSession,
+  PlayerSession, PlayerGames,
+} from '../firebase/gameService';
 import { cn } from '../utils/cn';
-import { Users, Bot, Play, Plus, LogIn, Trophy, History, Copy, Check, ArrowLeft } from 'lucide-react';
-import { AILevel } from '../game/types';
+import {
+  Users, Bot, Play, Plus, LogIn, Trophy, History, Copy, Check,
+  ArrowLeft, Gamepad2, RefreshCw, ChevronRight, X,
+} from 'lucide-react';
+import { AILevel, GameState, Tile } from '../game/types';
+import { TileView } from '../components/TileView';
+import { posKey, parseKey } from '../game/engine';
 
 interface LobbyProps {
   onNavigate: (page: 'game' | 'leaderboard' | 'history') => void;
 }
 
+// --- Mini Board for finished game detail ---
+function MiniBoard({ board, cellSize = 18 }: { board: Record<string, Tile>; cellSize?: number }) {
+  const keys = Object.keys(board);
+  if (keys.length === 0) return <div className="text-xs text-muted-foreground text-center py-4">Pusta plansza</div>;
+
+  const positions = keys.map(parseKey);
+  const minRow = Math.min(...positions.map(p => p.row));
+  const maxRow = Math.max(...positions.map(p => p.row));
+  const minCol = Math.min(...positions.map(p => p.col));
+  const maxCol = Math.max(...positions.map(p => p.col));
+
+  const cols = maxCol - minCol + 1;
+  const rows = maxRow - minRow + 1;
+  const gap = 2;
+
+  return (
+    <div className="overflow-auto max-h-[50vh] rounded-lg bg-muted/30 dark:bg-muted/10 border border-border/50 p-2">
+      <div
+        className="grid mx-auto"
+        style={{
+          gridTemplateColumns: `repeat(${cols}, ${cellSize}px)`,
+          gap: `${gap}px`,
+          width: 'fit-content',
+        }}
+      >
+        {Array.from({ length: rows * cols }).map((_, idx) => {
+          const row = minRow + Math.floor(idx / cols);
+          const col = minCol + (idx % cols);
+          const key = posKey(row, col);
+          const tile = board[key];
+
+          if (tile) {
+            return (
+              <TileView
+                key={key}
+                tile={tile}
+                size={cellSize}
+                showShadow={false}
+              />
+            );
+          }
+
+          return <div key={key} style={{ width: cellSize, height: cellSize }} />;
+        })}
+      </div>
+    </div>
+  );
+}
+
+// --- Finished Game Detail ---
+function FinishedGameDetail({ session, onClose }: { session: PlayerSession; onClose: () => void }) {
+  const finishedDate = session.finishedAt
+    ? new Date(session.finishedAt).toLocaleString('pl-PL', {
+        day: '2-digit', month: '2-digit', year: 'numeric',
+        hour: '2-digit', minute: '2-digit',
+      })
+    : '';
+
+  const sorted = [...(session.finalPlayers || [])].sort((a, b) => b.score - a.score);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="bg-card rounded-2xl border border-border p-5 max-w-md w-full shadow-xl space-y-4 max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between">
+          <h3 className="font-display font-bold text-lg">{session.gameName}</h3>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted transition-colors">
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="text-xs text-muted-foreground">
+          Zakończono: {finishedDate}
+        </div>
+
+        {/* Scores */}
+        <div className="space-y-2">
+          {sorted.map((player, idx) => (
+            <div
+              key={player.nickname}
+              className={cn(
+                'flex items-center gap-3 p-2.5 rounded-lg',
+                idx === 0 && 'bg-yellow-500/10 border border-yellow-500/30',
+                idx > 0 && 'bg-muted/50',
+              )}
+            >
+              <div className={cn(
+                'w-7 h-7 rounded-full flex items-center justify-center font-display font-bold text-xs',
+                idx === 0 && 'bg-yellow-500 text-white',
+                idx === 1 && 'bg-gray-300 dark:bg-gray-600 text-gray-800 dark:text-gray-200',
+                idx === 2 && 'bg-orange-400 text-white',
+              )}>
+                {idx + 1}
+              </div>
+              <div className="flex-1 min-w-0">
+                <span className="font-medium text-sm truncate block">
+                  {player.nickname}
+                  {player.isAI && ' 🤖'}
+                  {player.nickname === session.winner && ' 🏆'}
+                </span>
+              </div>
+              <div className="font-display font-bold text-lg">{player.score}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Board */}
+        {session.finalBoard && Object.keys(session.finalBoard).length > 0 && (
+          <div className="space-y-2">
+            <div className="text-sm font-medium text-muted-foreground">Ostateczny układ planszy</div>
+            <MiniBoard board={session.finalBoard} cellSize={22} />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function Lobby({ onNavigate }: LobbyProps) {
-  const { nickname, setNickname, setPlayerId, setRoomCode, setGameState, roomCode: storeRoomCode } = useGameStore();
+  const { nickname, setNickname, setPlayerId, setRoomCode, setGameState } = useGameStore();
   const [localNickname, setLocalNickname] = useState(nickname || '');
-  const [mode, setMode] = useState<'menu' | 'create' | 'join' | 'waiting'>('menu');
+  const [mode, setMode] = useState<'menu' | 'create' | 'join' | 'waiting' | 'mygames'>('menu');
   const [joinCode, setJoinCode] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -20,6 +147,24 @@ export function Lobby({ onNavigate }: LobbyProps) {
   const [maxPlayers, setMaxPlayers] = useState(2);
   const [copied, setCopied] = useState(false);
   const [unsubscribe, setUnsubscribe] = useState<(() => void) | null>(null);
+
+  // My games state
+  const [playerGames, setPlayerGames] = useState<PlayerGames>({ active: [], finished: [] });
+  const [loadingGames, setLoadingGames] = useState(false);
+  const [selectedFinished, setSelectedFinished] = useState<PlayerSession | null>(null);
+
+  const loadGames = async (nick?: string) => {
+    const n = nick || localNickname.trim();
+    if (!n) return;
+    setLoadingGames(true);
+    try {
+      const games = await getGamesForPlayer(n);
+      setPlayerGames(games);
+    } catch (e) {
+      console.error('Error loading games:', e);
+    }
+    setLoadingGames(false);
+  };
 
   const handleCreateRoom = async () => {
     if (!localNickname.trim()) { setError('Wpisz nick'); return; }
@@ -34,7 +179,8 @@ export function Lobby({ onNavigate }: LobbyProps) {
       setRoomInfo({ code: roomCode, players: [localNickname.trim()] });
       setMode('waiting');
 
-      // Subscribe to room updates
+      await savePlayerSession(localNickname.trim(), roomCode, playerId, gameState.players);
+
       const unsub = subscribeToRoom(roomCode, (state) => {
         if (state) {
           setGameState(state);
@@ -43,6 +189,7 @@ export function Lobby({ onNavigate }: LobbyProps) {
             players: state.players.map(p => p.nickname),
           });
           if (state.phase === 'playing') {
+            updateSessionGameName(localNickname.trim(), roomCode, state.players);
             onNavigate('game');
           }
         }
@@ -68,6 +215,8 @@ export function Lobby({ onNavigate }: LobbyProps) {
       setMode('waiting');
       setRoomInfo({ code: joinCode, players: gameState.players.map(p => p.nickname) });
 
+      await savePlayerSession(localNickname.trim(), joinCode, playerId, gameState.players);
+
       const unsub = subscribeToRoom(joinCode, (state) => {
         if (state) {
           setGameState(state);
@@ -76,6 +225,7 @@ export function Lobby({ onNavigate }: LobbyProps) {
             players: state.players.map(p => p.nickname),
           });
           if (state.phase === 'playing') {
+            updateSessionGameName(localNickname.trim(), joinCode, state.players);
             onNavigate('game');
           }
         }
@@ -87,11 +237,48 @@ export function Lobby({ onNavigate }: LobbyProps) {
     setIsLoading(false);
   };
 
+  const handleRejoinGame = async (session: PlayerSession) => {
+    setIsLoading(true);
+    setError('');
+    try {
+      setNickname(localNickname.trim());
+      setPlayerId(session.playerId);
+      setRoomCode(session.roomCode);
+
+      const unsub = subscribeToRoom(session.roomCode, (state) => {
+        if (state) {
+          setGameState(state);
+          updateSessionGameName(localNickname.trim(), session.roomCode, state.players);
+        }
+      });
+      setUnsubscribe(() => unsub);
+
+      await new Promise(resolve => setTimeout(resolve, 500));
+      onNavigate('game');
+    } catch (e: any) {
+      setError(e.message || 'Błąd powrotu do gry');
+    }
+    setIsLoading(false);
+  };
+
+  const handleDeleteFinished = async (session: PlayerSession) => {
+    try {
+      await removePlayerSession(localNickname.trim(), session.roomCode);
+      setPlayerGames(prev => ({
+        ...prev,
+        finished: prev.finished.filter(s => s.roomCode !== session.roomCode),
+      }));
+    } catch (e) {
+      console.error('Error removing session:', e);
+    }
+  };
+
   const handleAddAI = async (level: AILevel) => {
     if (!roomInfo) return;
     setIsLoading(true);
     try {
-      await addAIToRoom(roomInfo.code, level);
+      const updatedState = await addAIToRoom(roomInfo.code, level);
+      await savePlayerSession(localNickname.trim(), roomInfo.code, useGameStore.getState().playerId!, updatedState.players);
     } catch (e: any) {
       setError(e.message || 'Błąd dodawania AI');
     }
@@ -124,7 +311,182 @@ export function Lobby({ onNavigate }: LobbyProps) {
     setRoomInfo(null);
   };
 
+  const handleOpenMyGames = () => {
+    if (!localNickname.trim()) { setError('Wpisz nick aby zobaczyć swoje gry'); return; }
+    setError('');
+    setMode('mygames');
+    loadGames();
+  };
+
   // --- RENDER ---
+
+  // Finished game detail modal
+  const finishedModal = selectedFinished && (
+    <FinishedGameDetail
+      session={selectedFinished}
+      onClose={() => setSelectedFinished(null)}
+    />
+  );
+
+  // My games view
+  if (mode === 'mygames') {
+    const { active, finished } = playerGames;
+    return (
+      <div className="max-w-md mx-auto space-y-6">
+        {finishedModal}
+        <button onClick={handleBack} className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors text-sm">
+          <ArrowLeft size={16} /> Wróć
+        </button>
+
+        <div className="bg-card rounded-2xl border border-border/50 p-6 shadow-sm space-y-5">
+          <div className="flex items-center justify-between">
+            <h2 className="font-display font-bold text-xl">Moje gry</h2>
+            <button
+              onClick={() => loadGames()}
+              disabled={loadingGames}
+              className="p-2 rounded-lg hover:bg-muted transition-colors"
+              title="Odśwież"
+            >
+              <RefreshCw size={16} className={cn(loadingGames && 'animate-spin')} />
+            </button>
+          </div>
+
+          {loadingGames ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="w-6 h-6 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+            </div>
+          ) : (
+            <>
+              {/* Active games */}
+              {active.length > 0 && (
+                <div className="space-y-2">
+                  <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    Aktywne ({active.length})
+                  </div>
+                  {active.map(({ session, gameState }) => {
+                    const isMyTurn = gameState.players[gameState.currentPlayerIndex]?.id === session.playerId;
+                    const myPlayer = gameState.players.find(p => p.id === session.playerId);
+                    return (
+                      <button
+                        key={session.roomCode}
+                        onClick={() => handleRejoinGame(session)}
+                        disabled={isLoading}
+                        className={cn(
+                          'w-full p-3.5 rounded-xl border text-left transition-all hover:shadow-md',
+                          isMyTurn
+                            ? 'border-primary/50 bg-primary/5 hover:bg-primary/10'
+                            : 'border-border/50 bg-card hover:bg-muted/50',
+                        )}
+                        data-testid={`rejoin-${session.roomCode}`}
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <div className="font-semibold text-sm truncate">{session.gameName}</div>
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className={cn(
+                                'text-xs px-2 py-0.5 rounded-full font-medium',
+                                gameState.phase === 'waiting'
+                                  ? 'bg-yellow-500/15 text-yellow-700 dark:text-yellow-400'
+                                  : isMyTurn
+                                    ? 'bg-green-500/15 text-green-700 dark:text-green-400'
+                                    : 'bg-muted text-muted-foreground',
+                              )}>
+                                {gameState.phase === 'waiting' ? 'Oczekiwanie' : isMyTurn ? 'Twoja kolej' : 'Czekaj'}
+                              </span>
+                              {myPlayer && gameState.phase === 'playing' && (
+                                <span className="text-xs text-muted-foreground">{myPlayer.score} pkt</span>
+                              )}
+                            </div>
+                          </div>
+                          <ChevronRight size={16} className="text-muted-foreground flex-shrink-0" />
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Finished games */}
+              {finished.length > 0 && (
+                <div className="space-y-2">
+                  <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    Zakończone ({finished.length})
+                  </div>
+                  {finished.map(session => {
+                    const finishedDate = session.finishedAt
+                      ? new Date(session.finishedAt).toLocaleString('pl-PL', {
+                          day: '2-digit', month: '2-digit', year: 'numeric',
+                          hour: '2-digit', minute: '2-digit',
+                        })
+                      : '';
+                    const sorted = [...(session.finalPlayers || [])].sort((a, b) => b.score - a.score);
+
+                    return (
+                      <div
+                        key={session.roomCode}
+                        className="rounded-xl border border-border/50 bg-muted/20 overflow-hidden"
+                      >
+                        <button
+                          onClick={() => setSelectedFinished(session)}
+                          className="w-full p-3.5 text-left transition-all hover:bg-muted/40"
+                          data-testid={`finished-${session.roomCode}`}
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="flex-1 min-w-0">
+                              <div className="font-semibold text-sm truncate">{session.gameName}</div>
+                              <div className="flex items-center gap-2 mt-1 flex-wrap">
+                                <span className="text-xs text-muted-foreground">{finishedDate}</span>
+                                {session.winner && (
+                                  <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-500/15 text-yellow-700 dark:text-yellow-400 font-medium">
+                                    🏆 {session.winner}
+                                  </span>
+                                )}
+                              </div>
+                              {sorted.length > 0 && (
+                                <div className="flex items-center gap-3 mt-1.5">
+                                  {sorted.map(p => (
+                                    <span key={p.nickname} className="text-xs text-muted-foreground">
+                                      {p.nickname}: <strong className="text-foreground">{p.score}</strong>
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                            <ChevronRight size={16} className="text-muted-foreground flex-shrink-0" />
+                          </div>
+                        </button>
+                        <div className="border-t border-border/30 px-3.5 py-1.5 flex justify-end">
+                          <button
+                            onClick={() => handleDeleteFinished(session)}
+                            className="text-xs text-muted-foreground hover:text-destructive transition-colors"
+                          >
+                            Usuń
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Empty state */}
+              {active.length === 0 && finished.length === 0 && (
+                <div className="text-center py-8 space-y-2">
+                  <Gamepad2 size={32} className="mx-auto text-muted-foreground/50" />
+                  <p className="text-sm text-muted-foreground">Brak gier</p>
+                  <p className="text-xs text-muted-foreground/70">Stwórz pokój lub dołącz do istniejącego</p>
+                </div>
+              )}
+            </>
+          )}
+
+          {error && (
+            <div className="p-3 bg-destructive/10 text-destructive rounded-lg text-sm">{error}</div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   if (mode === 'waiting' && roomInfo) {
     const gameState = useGameStore.getState().gameState;
@@ -325,7 +687,7 @@ export function Lobby({ onNavigate }: LobbyProps) {
               style={{
                 backgroundColor: {
                   red: '#e63946', orange: '#f77f00', yellow: '#fcbf49',
-                  green: '#2a9d8f', blue: '#457b9d', purple: '#7b2cbf',
+                  green: '#2db84d', blue: '#3a7bd5', purple: '#7b2cbf',
                 }[color],
                 transform: `rotate(${(i - 2.5) * 5}deg)`,
               }}
@@ -365,6 +727,20 @@ export function Lobby({ onNavigate }: LobbyProps) {
             <div className="text-xs text-muted-foreground">Wpisz 6-cyfrowy kod</div>
           </div>
         </button>
+
+        <button
+          onClick={handleOpenMyGames}
+          className="w-full p-4 rounded-xl bg-card border border-border/50 font-semibold flex items-center gap-4 hover:bg-muted/50 transition-all shadow-sm"
+          data-testid="my-games"
+        >
+          <div className="w-12 h-12 rounded-xl bg-green-500/10 flex items-center justify-center">
+            <Gamepad2 size={24} className="text-green-600 dark:text-green-400" />
+          </div>
+          <div className="text-left">
+            <div className="text-sm font-semibold">Moje gry</div>
+            <div className="text-xs text-muted-foreground">Aktywne i zakończone rozgrywki</div>
+          </div>
+        </button>
       </div>
 
       {/* Secondary actions */}
@@ -386,6 +762,10 @@ export function Lobby({ onNavigate }: LobbyProps) {
           <div className="text-sm font-medium">Historia gier</div>
         </button>
       </div>
+
+      {error && (
+        <div className="p-3 bg-destructive/10 text-destructive rounded-lg text-sm max-w-md mx-auto">{error}</div>
+      )}
     </div>
   );
 }

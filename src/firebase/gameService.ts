@@ -116,6 +116,12 @@ export async function placeTiles(
   if (updatedState.phase === 'finished') {
     await saveGameHistory(updatedState);
     await updateLeaderboard(updatedState);
+    // Mark all human player sessions as finished
+    for (const p of updatedState.players) {
+      if (!p.isAI) {
+        await markSessionFinished(p.nickname, roomCode, updatedState).catch(() => {});
+      }
+    }
   }
 
   return updatedState;
@@ -153,6 +159,12 @@ export async function passPlayerTurn(
   if (updatedState.phase === 'finished') {
     await saveGameHistory(updatedState);
     await updateLeaderboard(updatedState);
+    // Mark all human player sessions as finished
+    for (const p of updatedState.players) {
+      if (!p.isAI) {
+        await markSessionFinished(p.nickname, roomCode, updatedState).catch(() => {});
+      }
+    }
   }
 
   return updatedState;
@@ -298,6 +310,146 @@ export async function getGameHistory(limit: number = 50): Promise<GameHistoryEnt
   const entries: GameHistoryEntry[] = Object.values(data);
   entries.sort((a, b) => b.date - a.date);
   return entries;
+}
+
+// --- Player Sessions (multi-game support) ---
+
+export interface PlayerSession {
+  roomCode: string;
+  playerId: string;
+  gameName: string;
+  joinedAt: number;
+  status: 'active' | 'finished';
+  finishedAt?: number;
+  finalBoard?: Record<string, Tile>;
+  finalPlayers?: { nickname: string; score: number; isAI?: boolean }[];
+  winner?: string;
+}
+
+function generateGameName(players: { nickname: string; isAI?: boolean; aiLevel?: string }[]): string {
+  const names = players.map(p => {
+    if (p.isAI) {
+      const levelMap: Record<string, string> = { easy: '\u0141atwy', medium: '\u015aredni', hard: 'Trudny' };
+      return `Bot ${levelMap[p.aiLevel || 'medium'] || '\u015aredni'}`;
+    }
+    return p.nickname;
+  });
+  if (names.length === 2) return `${names[0]} vs ${names[1]}`;
+  return names.join(', ');
+}
+
+export async function savePlayerSession(
+  nickname: string,
+  roomCode: string,
+  playerId: string,
+  players: { nickname: string; isAI?: boolean; aiLevel?: string }[]
+): Promise<void> {
+  const encodedNick = encodeNickname(nickname);
+  const session: PlayerSession = {
+    roomCode,
+    playerId,
+    gameName: generateGameName(players),
+    joinedAt: Date.now(),
+    status: 'active',
+  };
+  await set(ref(db, `playerSessions/${encodedNick}/${roomCode}`), stripUndefined(session));
+}
+
+export async function updateSessionGameName(
+  nickname: string,
+  roomCode: string,
+  players: { nickname: string; isAI?: boolean; aiLevel?: string }[]
+): Promise<void> {
+  const encodedNick = encodeNickname(nickname);
+  const gameName = generateGameName(players);
+  await update(ref(db, `playerSessions/${encodedNick}/${roomCode}`), { gameName });
+}
+
+export async function markSessionFinished(
+  nickname: string,
+  roomCode: string,
+  gameState: GameState
+): Promise<void> {
+  const encodedNick = encodeNickname(nickname);
+  await update(ref(db, `playerSessions/${encodedNick}/${roomCode}`), stripUndefined({
+    status: 'finished',
+    finishedAt: Date.now(),
+    finalBoard: gameState.board || {},
+    finalPlayers: gameState.players.map(p => ({
+      nickname: p.nickname,
+      score: p.score,
+      isAI: p.isAI || false,
+    })),
+    winner: gameState.winner || '',
+    gameName: generateGameName(gameState.players),
+  }));
+}
+
+export async function removePlayerSession(
+  nickname: string,
+  roomCode: string
+): Promise<void> {
+  const encodedNick = encodeNickname(nickname);
+  await remove(ref(db, `playerSessions/${encodedNick}/${roomCode}`));
+}
+
+export async function getPlayerSessions(
+  nickname: string
+): Promise<PlayerSession[]> {
+  const encodedNick = encodeNickname(nickname);
+  const snapshot = await get(ref(db, `playerSessions/${encodedNick}`));
+  if (!snapshot.exists()) return [];
+  const data = snapshot.val();
+  return Object.values(data) as PlayerSession[];
+}
+
+export interface PlayerGames {
+  active: { session: PlayerSession; gameState: GameState }[];
+  finished: PlayerSession[];
+}
+
+export async function getGamesForPlayer(
+  nickname: string
+): Promise<PlayerGames> {
+  const sessions = await getPlayerSessions(nickname);
+  const active: { session: PlayerSession; gameState: GameState }[] = [];
+  const finished: PlayerSession[] = [];
+
+  for (const session of sessions) {
+    // Already marked as finished — no need to fetch room
+    if (session.status === 'finished') {
+      finished.push(session);
+      continue;
+    }
+
+    // Active session — verify room still exists
+    const snapshot = await get(ref(db, `rooms/${session.roomCode}`));
+    if (snapshot.exists()) {
+      const state = sanitizeGameState(snapshot.val() as GameState);
+      if (state.phase === 'finished') {
+        // Game ended while player was away — mark as finished
+        await markSessionFinished(nickname, session.roomCode, state);
+        finished.push({
+          ...session,
+          status: 'finished',
+          finishedAt: Date.now(),
+          finalBoard: state.board,
+          finalPlayers: state.players.map(p => ({ nickname: p.nickname, score: p.score, isAI: p.isAI })),
+          winner: state.winner || '',
+        });
+      } else {
+        active.push({ session, gameState: state });
+      }
+    } else {
+      // Room deleted — clean up
+      await removePlayerSession(nickname, session.roomCode);
+    }
+  }
+
+  // Sort finished by date descending
+  finished.sort((a, b) => (b.finishedAt || 0) - (a.finishedAt || 0));
+
+  return { active, finished };
 }
 
 // --- Room cleanup ---

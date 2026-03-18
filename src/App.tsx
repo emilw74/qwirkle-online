@@ -11,7 +11,7 @@ type Page = 'lobby' | 'game' | 'leaderboard' | 'history';
 
 function App() {
   const [page, setPage] = useState<Page>('lobby');
-  const { isDarkMode, toggleDarkMode, reset } = useGameStore();
+  const { isDarkMode, toggleDarkMode, leaveGame } = useGameStore();
 
   // Initialize dark mode
   useEffect(() => {
@@ -23,7 +23,7 @@ function App() {
   }, []);
 
   const handleNavigateHome = () => {
-    reset();
+    leaveGame();
     setPage('lobby');
   };
 
@@ -48,7 +48,7 @@ function App() {
             className="flex items-center gap-2 hover:opacity-80 transition-opacity"
           >
             <div className="flex items-center gap-0.5">
-              {['#e63946', '#f77f00', '#fcbf49', '#2a9d8f', '#457b9d', '#7b2cbf'].map((color, i) => (
+              {['#e63946', '#f77f00', '#fcbf49', '#2db84d', '#3a7bd5', '#7b2cbf'].map((color, i) => (
                 <div
                   key={i}
                   className={cn('rounded-sm', isGame ? 'w-2.5 h-2.5' : 'w-3 h-3')}
