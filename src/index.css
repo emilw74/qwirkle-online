@@ -1,0 +1,127 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Qwirkle-inspired vibrant game palette - Light mode */
+    --background: 220 20% 97%;
+    --foreground: 230 25% 12%;
+    --card: 220 20% 99%;
+    --card-foreground: 230 25% 12%;
+    --popover: 220 20% 99%;
+    --popover-foreground: 230 25% 12%;
+    --primary: 262 83% 58%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 220 14% 94%;
+    --secondary-foreground: 230 25% 15%;
+    --muted: 220 14% 94%;
+    --muted-foreground: 220 10% 46%;
+    --accent: 168 76% 42%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 13% 88%;
+    --input: 220 13% 88%;
+    --ring: 262 83% 58%;
+    --radius: 0.625rem;
+  }
+
+  .dark {
+    --background: 230 20% 8%;
+    --foreground: 220 15% 90%;
+    --card: 230 18% 11%;
+    --card-foreground: 220 15% 90%;
+    --popover: 230 18% 11%;
+    --popover-foreground: 220 15% 90%;
+    --primary: 262 83% 65%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 230 15% 16%;
+    --secondary-foreground: 220 15% 85%;
+    --muted: 230 15% 16%;
+    --muted-foreground: 220 10% 55%;
+    --accent: 168 76% 48%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 72% 55%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 230 12% 20%;
+    --input: 230 12% 20%;
+    --ring: 262 83% 65%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+/* Qwirkle tile colors */
+.tile-red { --tile-color: #e63946; }
+.tile-orange { --tile-color: #f77f00; }
+.tile-yellow { --tile-color: #fcbf49; }
+.tile-green { --tile-color: #2a9d8f; }
+.tile-blue { --tile-color: #457b9d; }
+.tile-purple { --tile-color: #7b2cbf; }
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.3);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.5);
+}
+
+/* Game board grid */
+.board-cell {
+  transition: background-color 0.15s ease, transform 0.15s ease;
+}
+.board-cell:hover {
+  transform: scale(1.05);
+}
+.board-cell.valid-drop {
+  background-color: hsl(var(--accent) / 0.2);
+  border-color: hsl(var(--accent) / 0.5);
+}
+
+/* Tile in hand */
+.hand-tile {
+  cursor: grab;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.hand-tile:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+}
+.hand-tile.selected {
+  transform: translateY(-8px);
+  box-shadow: 0 12px 32px rgba(0,0,0,0.2);
+  outline: 3px solid hsl(var(--primary));
+  outline-offset: 2px;
+}
+.hand-tile:active {
+  cursor: grabbing;
+}
+
+/* PWA install prompt */
+@keyframes slideUp {
+  from { transform: translateY(100%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+.pwa-prompt {
+  animation: slideUp 0.3s ease-out;
+}
