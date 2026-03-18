@@ -447,6 +447,8 @@ export async function getGamesForPlayer(
       const state = sanitizeGameState(snapshot.val() as GameState);
       if (state.phase === 'finished') {
         await markSessionFinished(uid, session.roomCode, state);
+        // Also ensure history & leaderboard are saved (idempotent)
+        await ensureGameFinalized(state, uid);
         finished.push({
           ...session,
           status: 'finished',
