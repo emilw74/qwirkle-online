@@ -557,18 +557,26 @@ export function Lobby({ onNavigate }: LobbyProps) {
                                 <div className="font-semibold text-sm truncate">{session.gameName}</div>
                               )}
                               <div className="flex items-center gap-2 mt-1 flex-wrap">
-                                <span className={cn(
-                                  'text-xs px-2 py-0.5 rounded-full font-medium',
-                                  gameState.phase === 'waiting'
-                                    ? 'bg-yellow-500/15 text-yellow-700 dark:text-yellow-400'
-                                    : isMyTurn
+                                {gameState.phase === 'waiting' ? (() => {
+                                  const isFull = gameState.players.length >= gameState.maxPlayers;
+                                  const hostPlayer = gameState.players.find(p => p.id === gameState.hostId);
+                                  if (isFull && isHost) {
+                                    return <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-green-500/15 text-green-700 dark:text-green-400">{t('readyToStart')}</span>;
+                                  } else if (isFull) {
+                                    return <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-yellow-500/15 text-yellow-700 dark:text-yellow-400">{t('waitingForHost2')} {hostPlayer?.nickname || '...'}</span>;
+                                  } else {
+                                    return <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-yellow-500/15 text-yellow-700 dark:text-yellow-400">{t('waitingForPlayers')} ({gameState.players.length}/{gameState.maxPlayers})</span>;
+                                  }
+                                })() : (
+                                  <span className={cn(
+                                    'text-xs px-2 py-0.5 rounded-full font-medium',
+                                    isMyTurn
                                       ? 'bg-green-500/15 text-green-700 dark:text-green-400'
                                       : 'bg-muted text-muted-foreground',
-                                )}>
-                                  {gameState.phase === 'waiting'
-                                    ? `${t('waitingForPlayers')} (${gameState.players.length}/${gameState.maxPlayers})`
-                                    : isMyTurn ? t('yourTurn') : t('waitTurn')}
-                                </span>
+                                  )}>
+                                    {isMyTurn ? t('yourTurn') : t('waitTurn')}
+                                  </span>
+                                )}
                                 {gameState.phase === 'waiting' && (
                                   <span className="text-xs font-mono font-bold tracking-wider text-primary">{session.roomCode}</span>
                                 )}

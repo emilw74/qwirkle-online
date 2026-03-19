@@ -186,6 +186,14 @@ export const translations = {
     pl: 'Czekamy na graczy',
     en: 'Waiting for players',
   },
+  readyToStart: {
+    pl: 'Rozpocznij grę!',
+    en: 'Start the game!',
+  },
+  waitingForHost2: {
+    pl: 'Czekamy na start od',
+    en: 'Waiting for start by',
+  },
   waitingForHost: {
     pl: 'Czekam na hosta...',
     en: 'Waiting for host...',
