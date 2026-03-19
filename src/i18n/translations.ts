@@ -224,6 +224,10 @@ export const translations = {
     pl: 'Czekaj',
     en: 'Wait',
   },
+  moveShort: {
+    pl: 'ruch',
+    en: 'move',
+  },
   pts: {
     pl: 'pkt',
     en: 'pts',

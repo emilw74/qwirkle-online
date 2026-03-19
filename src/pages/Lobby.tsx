@@ -614,6 +614,11 @@ export function Lobby({ onNavigate, initialMode = 'menu', onModeChange, isSuperU
                                     ⏱ {formatDuration(gameDurationMs)}
                                   </span>
                                 )}
+                                {gameState.turnTimeLimitMs && (
+                                  <span className="text-xs text-muted-foreground/50">
+                                    {formatTimeLimitDisplay(gameState.turnTimeLimitMs)}/{t('moveShort')}
+                                  </span>
+                                )}
                               </div>
                             </div>
                             <ChevronRight size={16} className="text-muted-foreground flex-shrink-0" />
