@@ -4,6 +4,7 @@ import { Game } from './pages/Game';
 import { Leaderboard } from './pages/Leaderboard';
 import { Rules } from './pages/Rules';
 import { About } from './pages/About';
+import { AdminPanel } from './pages/AdminPanel';
 import { AuthGate } from './components/AuthGate';
 import { useGameStore } from './hooks/useGameStore';
 import { signOut } from './firebase/authService';
@@ -13,7 +14,9 @@ import { UserProfile, updateNickname } from './firebase/authService';
 import { LanguageProvider, useTranslation } from './i18n/LanguageContext';
 import { LanguageToggle } from './components/LanguageToggle';
 
-type Page = 'lobby' | 'game' | 'leaderboard' | 'rules' | 'about';
+import { SUPERUSER_EMAIL } from './firebase/gameService';
+
+type Page = 'lobby' | 'game' | 'leaderboard' | 'rules' | 'about' | 'admin';
 
 function AppContent({ profile }: { profile: UserProfile }) {
   const { t } = useTranslation();
@@ -303,6 +306,7 @@ function AppContent({ profile }: { profile: UserProfile }) {
               }}
               initialMode={lobbyInitialMode}
               onModeChange={handleLobbyModeChange}
+              isSuperUser={profile.email === SUPERUSER_EMAIL}
             />
           )}
           {page === 'leaderboard' && (
@@ -313,6 +317,9 @@ function AppContent({ profile }: { profile: UserProfile }) {
           )}
           {page === 'about' && (
             <About onBack={() => setPage('lobby')} />
+          )}
+          {page === 'admin' && profile.email === SUPERUSER_EMAIL && (
+            <AdminPanel onBack={() => setPage('lobby')} />
           )}
         </main>
       )}

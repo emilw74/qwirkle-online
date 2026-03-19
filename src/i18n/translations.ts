@@ -491,6 +491,100 @@ export const translations = {
     pl: 'Auto-pasów:',
     en: 'Auto-passes:',
   },
+
+  // ===== Admin Panel =====
+  adminTitle: {
+    pl: 'Panel Admina',
+    en: 'Admin Panel',
+  },
+  adminSubtitle: {
+    pl: 'Zarządzanie grą — tylko dla super usera',
+    en: 'Game management — super user only',
+  },
+  adminMenu: {
+    pl: 'Admin',
+    en: 'Admin',
+  },
+  adminClearLeaderboard: {
+    pl: 'Wyczyść ranking',
+    en: 'Clear Leaderboard',
+  },
+  adminClearLeaderboardDesc: {
+    pl: 'Permanentnie usuwa cały ranking. Wszyscy gracze stracą swoje statystyki.',
+    en: 'Permanently deletes the entire leaderboard. All players lose their stats.',
+  },
+  adminClearLeaderboardBtn: {
+    pl: 'Usuń cały ranking',
+    en: 'Delete entire leaderboard',
+  },
+  adminLeaderboardCleared: {
+    pl: 'Ranking został wyczyszczony.',
+    en: 'Leaderboard has been cleared.',
+  },
+  adminDeleteGames: {
+    pl: 'Usuń zakończone gry',
+    en: 'Delete Finished Games',
+  },
+  adminDeleteGamesDesc: {
+    pl: 'Permanentnie usuwa wszystkie zakończone gry z historii i sesji graczy.',
+    en: 'Permanently deletes all finished games from history and player sessions.',
+  },
+  adminDeleteGamesBtn: {
+    pl: 'Usuń wszystkie zakończone gry',
+    en: 'Delete all finished games',
+  },
+  adminGamesDeleted: {
+    pl: 'Usunięto: {history} z historii, {sessions} sesji.',
+    en: 'Deleted: {history} from history, {sessions} sessions.',
+  },
+  adminActiveGames: {
+    pl: 'Aktywne gry — edycja nicków',
+    en: 'Active Games — Edit Nicknames',
+  },
+  adminActiveGamesDesc: {
+    pl: 'Zmień nick dowolnego gracza w aktywnej grze. Zmiana aktualizuje również profil i ranking.',
+    en: 'Change any player\'s nickname in an active game. Also updates profile and leaderboard.',
+  },
+  adminNoActiveGames: {
+    pl: 'Brak aktywnych gier.',
+    en: 'No active games.',
+  },
+  adminEditNick: {
+    pl: 'Edytuj nick',
+    en: 'Edit nickname',
+  },
+  adminEditNickTitle: {
+    pl: 'Zmień nick gracza',
+    en: 'Change Player Nickname',
+  },
+  adminEditNickRoom: {
+    pl: 'Pokój',
+    en: 'Room',
+  },
+  adminNickUpdated: {
+    pl: 'Nick zaktualizowany.',
+    en: 'Nickname updated.',
+  },
+  adminRefresh: {
+    pl: 'Odśwież listę',
+    en: 'Refresh list',
+  },
+  adminConfirmTitle: {
+    pl: 'Potwierdzenie',
+    en: 'Confirmation',
+  },
+  adminConfirmLeaderboard: {
+    pl: 'Czy na pewno chcesz usunąć cały ranking? Tej operacji nie można cofnąć.',
+    en: 'Are you sure you want to delete the entire leaderboard? This cannot be undone.',
+  },
+  adminConfirmGames: {
+    pl: 'Czy na pewno chcesz usunąć wszystkie zakończone gry? Tej operacji nie można cofnąć.',
+    en: 'Are you sure you want to delete all finished games? This cannot be undone.',
+  },
+  adminConfirmBtn: {
+    pl: 'Tak, usuń',
+    en: 'Yes, delete',
+  },
 } as const;
 
 export type TranslationKey = keyof typeof translations;

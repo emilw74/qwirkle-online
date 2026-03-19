@@ -9,7 +9,7 @@ import {
 import { cn } from '../utils/cn';
 import {
   Users, Bot, Play, Plus, LogIn, Trophy, Copy, Check,
-  ArrowLeft, Gamepad2, ChevronRight, X, BookOpen, Info, Trash2, Clock,
+  ArrowLeft, Gamepad2, ChevronRight, X, BookOpen, Info, Trash2, Clock, Shield,
 } from 'lucide-react';
 import { AILevel, GameState, Tile } from '../game/types';
 import { TileView } from '../components/TileView';
@@ -20,9 +20,10 @@ import { LanguageToggle } from '../components/LanguageToggle';
 export type LobbyMode = 'menu' | 'create' | 'join' | 'waiting' | 'mygames';
 
 interface LobbyProps {
-  onNavigate: (page: 'game' | 'leaderboard' | 'rules' | 'about') => void;
+  onNavigate: (page: 'game' | 'leaderboard' | 'rules' | 'about' | 'admin') => void;
   initialMode?: 'menu' | 'mygames';
   onModeChange?: (mode: LobbyMode) => void;
+  isSuperUser?: boolean;
 }
 
 // --- Mini Board for finished game detail ---
@@ -177,7 +178,7 @@ function formatDuration(ms: number): string {
   return parts.join(' ') || '<1min';
 }
 
-export function Lobby({ onNavigate, initialMode = 'menu', onModeChange }: LobbyProps) {
+export function Lobby({ onNavigate, initialMode = 'menu', onModeChange, isSuperUser }: LobbyProps) {
   const { t, lang } = useTranslation();
   const { uid, nickname, setPlayerId, setRoomCode, setGameState } = useGameStore();
   const [mode, setModeRaw] = useState<LobbyMode>(initialMode);
@@ -1114,7 +1115,7 @@ export function Lobby({ onNavigate, initialMode = 'menu', onModeChange }: LobbyP
       </div>
 
       {/* Secondary actions */}
-      <div className="grid grid-cols-3 gap-2">
+      <div className={cn('grid gap-2', isSuperUser ? 'grid-cols-4' : 'grid-cols-3')}>
         <button
           onClick={() => onNavigate('leaderboard')}
           className="p-3 rounded-xl bg-card border border-border/50 hover:bg-muted/50 transition-all text-center shadow-sm"
@@ -1139,6 +1140,16 @@ export function Lobby({ onNavigate, initialMode = 'menu', onModeChange }: LobbyP
           <Info size={22} className="mx-auto mb-1.5 text-violet-500" />
           <div className="text-xs font-medium">{t('about')}</div>
         </button>
+        {isSuperUser && (
+          <button
+            onClick={() => onNavigate('admin')}
+            className="p-3 rounded-xl bg-card border border-red-500/30 hover:bg-red-500/10 transition-all text-center shadow-sm"
+            data-testid="admin"
+          >
+            <Shield size={22} className="mx-auto mb-1.5 text-red-500" />
+            <div className="text-xs font-medium">{t('adminMenu')}</div>
+          </button>
+        )}
       </div>
 
       {error && (

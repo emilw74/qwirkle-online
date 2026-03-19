@@ -692,3 +692,110 @@ export async function deleteGame(
     }
   }
 }
+
+// --- Admin functions ---
+
+export const SUPERUSER_EMAIL = 'emil.wawrzycki@ewakon.pl';
+
+/** Clear entire leaderboard */
+export async function adminClearLeaderboard(): Promise<void> {
+  await remove(ref(db, 'leaderboard'));
+}
+
+/** Permanently delete all finished games (gameHistory + finished playerSessions) */
+export async function adminDeleteAllFinishedGames(): Promise<{ deletedHistory: number; deletedSessions: number }> {
+  let deletedHistory = 0;
+  let deletedSessions = 0;
+
+  // 1. Remove all gameHistory entries
+  const histSnap = await get(ref(db, 'gameHistory'));
+  if (histSnap.exists()) {
+    deletedHistory = Object.keys(histSnap.val()).length;
+    await remove(ref(db, 'gameHistory'));
+  }
+
+  // 2. Remove all finished playerSessions
+  const sessionsSnap = await get(ref(db, 'playerSessions'));
+  if (sessionsSnap.exists()) {
+    const allSessions = sessionsSnap.val() as Record<string, Record<string, { status: string }>>;
+    for (const [uid, rooms] of Object.entries(allSessions)) {
+      for (const [roomCode, session] of Object.entries(rooms)) {
+        if (session.status === 'finished') {
+          await remove(ref(db, `playerSessions/${uid}/${roomCode}`));
+          deletedSessions++;
+        }
+      }
+    }
+  }
+
+  return { deletedHistory, deletedSessions };
+}
+
+/** Get all active rooms with their players */
+export interface ActiveRoomInfo {
+  roomCode: string;
+  players: { id: string; nickname: string; isAI?: boolean }[];
+  phase: string;
+  hostId?: string;
+}
+
+export async function adminGetActiveRooms(): Promise<ActiveRoomInfo[]> {
+  const roomsSnap = await get(ref(db, 'rooms'));
+  if (!roomsSnap.exists()) return [];
+
+  const rooms = roomsSnap.val() as Record<string, GameState>;
+  const result: ActiveRoomInfo[] = [];
+
+  for (const [roomCode, room] of Object.entries(rooms)) {
+    result.push({
+      roomCode,
+      players: (room.players || []).map((p: Player) => ({
+        id: p.id,
+        nickname: p.nickname,
+        isAI: p.isAI || false,
+      })),
+      phase: room.phase || 'unknown',
+      hostId: room.hostId,
+    });
+  }
+
+  return result;
+}
+
+/** Update a player's nickname in an active room (admin override) */
+export async function adminUpdatePlayerNickInRoom(
+  roomCode: string,
+  playerId: string,
+  newNickname: string
+): Promise<void> {
+  const trimmed = newNickname.trim();
+  if (!trimmed || trimmed.length > 16) {
+    throw new Error('Nick musi mieć 1-16 znaków');
+  }
+
+  const roomSnap = await get(ref(db, `rooms/${roomCode}`));
+  if (!roomSnap.exists()) throw new Error('Room not found');
+
+  const room = roomSnap.val();
+  const players = room.players || [];
+  let found = false;
+  for (let i = 0; i < players.length; i++) {
+    if (players[i].id === playerId) {
+      players[i].nickname = trimmed;
+      found = true;
+    }
+  }
+  if (!found) throw new Error('Player not found in room');
+
+  await update(ref(db, `rooms/${roomCode}`), { players });
+
+  // Also update the player's profile and leaderboard (not for AI)
+  if (!playerId.startsWith('ai-')) {
+    await update(ref(db, `profiles/${playerId}`), { nickname: trimmed });
+
+    const lbSnap = await get(ref(db, `leaderboard/${playerId}`));
+    if (lbSnap.exists()) {
+      await update(ref(db, `leaderboard/${playerId}`), { nickname: trimmed });
+    }
+  }
+}
