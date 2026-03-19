@@ -229,8 +229,8 @@ export const translations = {
     en: 'pts',
   },
   remove: {
-    pl: 'Usuń',
-    en: 'Remove',
+    pl: 'Ukryj u mnie',
+    en: 'Hide for me',
   },
   emptyBoard: {
     pl: 'Pusta plansza',
