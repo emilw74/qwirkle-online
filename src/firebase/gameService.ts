@@ -448,7 +448,34 @@ export async function getGamesForPlayer(
 
     const snapshot = await get(ref(db, `rooms/${session.roomCode}`));
     if (snapshot.exists()) {
-      const state = sanitizeGameState(snapshot.val() as GameState);
+      let state = sanitizeGameState(snapshot.val() as GameState);
+
+      // Auto-pass expired turns (handles the case when user views Lobby instead of Game)
+      if (state.phase === 'playing' && state.turnTimeLimitMs && state.turnStartedAt) {
+        const elapsed = now - state.turnStartedAt;
+        if (elapsed > state.turnTimeLimitMs) {
+          const currentPlayer = state.players[state.currentPlayerIndex];
+          if (currentPlayer) {
+            try {
+              console.log('[getGamesForPlayer] Auto-passing expired turn for', currentPlayer.nickname, 'in room', session.roomCode);
+              state = await passPlayerTurn(session.roomCode, currentPlayer.id);
+              // If it's now an AI's turn, run the AI
+              let aiLoopCount = 0;
+              while (
+                state.phase === 'playing' &&
+                state.players[state.currentPlayerIndex]?.isAI &&
+                aiLoopCount < 10
+              ) {
+                state = await executeAITurn(session.roomCode);
+                aiLoopCount++;
+              }
+            } catch (e) {
+              console.error('[getGamesForPlayer] auto-pass error:', e);
+            }
+          }
+        }
+      }
+
       if (state.phase === 'finished') {
         await markSessionFinished(uid, session.roomCode, state);
         // Also ensure history & leaderboard are saved (idempotent)
