@@ -137,22 +137,45 @@ export function Game({ onNavigate }: GameProps) {
   }, [gameState?.phase, roomCode, playerId]);
 
   // Show last move info — stays visible until the next player makes their move
+  // If recent moves are passes, show pass info + the last non-pass move
   const prevMovesLengthRef = useRef(gameState?.moves?.length || 0);
 
   useEffect(() => {
-    const movesLen = gameState?.moves?.length || 0;
+    const moves = gameState?.moves || [];
+    const movesLen = moves.length;
     if (movesLen === 0 || movesLen === prevMovesLengthRef.current) return;
     prevMovesLengthRef.current = movesLen;
 
-    const lastMove = gameState!.moves[movesLen - 1];
-    const player = gameState!.players.find(p => p.id === lastMove.playerId);
-    if (!player) return;
+    const players = gameState!.players;
+    const findNick = (id: string) => players.find(p => p.id === id)?.nickname || '?';
 
-    if (lastMove.isSwap) {
-      setLastMoveInfo(`${player.nickname} ${t('swappedTiles')}`);
-    } else if (lastMove.score > 0) {
-      const qwirkle = lastMove.score >= 12 ? ' QWIRKLE!' : '';
-      setLastMoveInfo(`${player.nickname}: +${lastMove.score} ${t('pts')}${qwirkle}`);
+    // Collect trailing passes
+    const passParts: string[] = [];
+    let idx = movesLen - 1;
+    while (idx >= 0 && moves[idx].isPass) {
+      passParts.unshift(`${findNick(moves[idx].playerId)}: ${t('pass')}`);
+      idx--;
+    }
+
+    // Find the last non-pass move (could be further back if several passes in a row)
+    let scorePart = '';
+    if (idx >= 0) {
+      const m = moves[idx];
+      if (m.isSwap) {
+        scorePart = `${findNick(m.playerId)} ${t('swappedTiles')}`;
+      } else if (m.score > 0) {
+        const qwirkle = m.score >= 12 ? ' QWIRKLE!' : '';
+        scorePart = `${findNick(m.playerId)}: +${m.score} ${t('pts')}${qwirkle}`;
+      }
+    }
+
+    // Build combined info
+    if (passParts.length > 0) {
+      // Show passes + last actual move (if any)
+      const passLine = passParts.join(' · ');
+      setLastMoveInfo(scorePart ? `${passLine}\n${scorePart}` : passLine);
+    } else if (scorePart) {
+      setLastMoveInfo(scorePart);
     }
   }, [gameState?.moves?.length]);
 
@@ -351,7 +374,7 @@ export function Game({ onNavigate }: GameProps) {
       {/* Move info / error — minimal */}
       {(lastMoveInfo || error) && (
         <div className={cn(
-          'mx-2 px-2 py-1 rounded-md text-xs text-center transition-all',
+          'mx-2 px-2 py-1 rounded-md text-xs text-center transition-all whitespace-pre-line',
           error ? 'bg-destructive/10 text-destructive' : 'bg-primary/10 text-primary',
         )}>
           {error || lastMoveInfo}

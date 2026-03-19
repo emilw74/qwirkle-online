@@ -43,6 +43,7 @@ export interface GameMove {
   tiles: PlacedTile[];
   score: number;
   isSwap: boolean;
+  isPass?: boolean;
   timestamp: number;
 }
 

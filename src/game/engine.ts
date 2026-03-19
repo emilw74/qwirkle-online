@@ -631,12 +631,22 @@ export function passTurn(state: GameState, playerId: string): GameState {
   }
   
   const nextPlayerIdx = (state.currentPlayerIndex + 1) % state.players.length;
+
+  const passMove: GameMove = {
+    playerId,
+    tiles: [],
+    score: 0,
+    isSwap: false,
+    isPass: true,
+    timestamp: Date.now(),
+  };
   
   return {
     ...state,
     currentPlayerIndex: nextPlayerIdx,
     phase,
     consecutivePasses: newConsecutivePasses,
+    moves: [...state.moves, passMove],
     winner,
     turnStartedAt: phase === 'finished' ? state.turnStartedAt : Date.now(),
     // Note: autoPassCounts NOT reset here — passTurn is also used for auto-passes.
