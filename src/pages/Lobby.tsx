@@ -160,6 +160,19 @@ function formatTimeLimitDisplay(ms: number): string {
   return `${m}min`;
 }
 
+function formatDuration(ms: number): string {
+  if (ms < 60_000) return '<1min';
+  const totalMin = Math.floor(ms / 60_000);
+  const d = Math.floor(totalMin / 1440);
+  const h = Math.floor((totalMin % 1440) / 60);
+  const m = totalMin % 60;
+  const parts: string[] = [];
+  if (d > 0) parts.push(`${d}d`);
+  if (h > 0) parts.push(`${h}h`);
+  if (m > 0 && d === 0) parts.push(`${m}min`); // skip minutes when days shown
+  return parts.join(' ') || '<1min';
+}
+
 export function Lobby({ onNavigate }: LobbyProps) {
   const { t, lang } = useTranslation();
   const { uid, nickname, setPlayerId, setRoomCode, setGameState } = useGameStore();
@@ -509,6 +522,8 @@ export function Lobby({ onNavigate }: LobbyProps) {
                       ? Math.max(0, gameState.turnTimeLimitMs - (Date.now() - gameState.turnStartedAt))
                       : null;
                     const myAutoPassCount = gameState.autoPassCounts?.[session.playerId] || 0;
+                    const gameStartedAt = gameState.moves?.[0]?.timestamp;
+                    const gameDurationMs = gameStartedAt ? Date.now() - gameStartedAt : 0;
                     // Use tick to force re-render
                     void tick;
                     return (
@@ -563,6 +578,11 @@ export function Lobby({ onNavigate }: LobbyProps) {
                                     {t('autoPassCount')} {myAutoPassCount}
                                   </span>
                                 )}
+                                {gameState.phase === 'playing' && gameStartedAt && (
+                                  <span className="text-xs text-muted-foreground/70">
+                                    ⏱ {formatDuration(gameDurationMs)}
+                                  </span>
+                                )}
                               </div>
                             </div>
                             <ChevronRight size={16} className="text-muted-foreground flex-shrink-0" />
@@ -606,6 +626,9 @@ export function Lobby({ onNavigate }: LobbyProps) {
                         })
                       : '';
                     const sorted = [...(session.finalPlayers || [])].sort((a, b) => b.score - a.score);
+                    const totalDurationMs = (session.finishedAt && session.gameStartedAt)
+                      ? session.finishedAt - session.gameStartedAt
+                      : 0;
 
                     return (
                       <div
@@ -627,7 +650,10 @@ export function Lobby({ onNavigate }: LobbyProps) {
                               </div>
                             </div>
                             <div className="text-xs text-muted-foreground/70 space-y-0.5 pl-5">
-                              <div>{t('gameDeletedBy')} {session.deletedBy} {t('gameDeletedOn')} {deletedDate}</div>
+                              <div>
+                                {t('gameDeletedBy')} {session.deletedBy} {t('gameDeletedOn')} {deletedDate}
+                                {totalDurationMs > 0 && <span className="ml-2">⏱ {formatDuration(totalDurationMs)}</span>}
+                              </div>
                               {sorted.length > 0 && (
                                 <div className="flex items-center gap-3 mt-1">
                                   {sorted.map(p => (
@@ -652,6 +678,9 @@ export function Lobby({ onNavigate }: LobbyProps) {
                                   <div className="font-semibold text-sm truncate">{session.gameName}</div>
                                   <div className="flex items-center gap-2 mt-1 flex-wrap">
                                     <span className="text-xs text-muted-foreground">{finishedDate}</span>
+                                    {totalDurationMs > 0 && (
+                                      <span className="text-xs text-muted-foreground/70">⏱ {formatDuration(totalDurationMs)}</span>
+                                    )}
                                     {session.winner && (
                                       <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-500/15 text-yellow-700 dark:text-yellow-400 font-medium">
                                         🏆 {session.winner}

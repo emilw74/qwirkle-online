@@ -430,6 +430,7 @@ export interface PlayerSession {
   joinedAt: number;
   status: 'active' | 'finished';
   finishedAt?: number;
+  gameStartedAt?: number; // timestamp of first move
   finalBoard?: Record<string, Tile>;
   finalPlayers?: { nickname: string; score: number; isAI?: boolean }[];
   winner?: string;
@@ -480,6 +481,7 @@ export async function markSessionFinished(
   await update(ref(db, `playerSessions/${uid}/${roomCode}`), stripUndefined({
     status: 'finished',
     finishedAt: Date.now(),
+    gameStartedAt: gameState.moves?.[0]?.timestamp || gameState.createdAt,
     finalBoard: gameState.board || {},
     finalPlayers: gameState.players.map(p => ({
       nickname: p.nickname,
@@ -557,6 +559,7 @@ export async function getGamesForPlayer(
           ...session,
           status: 'finished',
           finishedAt: Date.now(),
+          gameStartedAt: state.moves?.[0]?.timestamp || state.createdAt,
           finalBoard: state.board,
           finalPlayers: state.players.map(p => ({ nickname: p.nickname, score: p.score, isAI: p.isAI })),
           winner: state.winner || '',
