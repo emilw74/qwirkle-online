@@ -84,8 +84,26 @@ export function Game({ onNavigate }: GameProps) {
     if (!gameState || !roomCode || gameState.phase !== 'playing') return;
     if (!gameState.turnTimeLimitMs || !gameState.turnStartedAt) return;
 
-    const elapsed = Date.now() - gameState.turnStartedAt;
+    const now = Date.now();
+    const elapsed = now - gameState.turnStartedAt;
     const remaining = gameState.turnTimeLimitMs - elapsed;
+
+    // Guard: don't auto-pass if turn started less than 3 seconds ago
+    // (prevents race condition on game start / page load)
+    if (elapsed < 3000) {
+      const guardTimer = setTimeout(() => {
+        // Re-check after guard period
+        const newElapsed = Date.now() - gameState.turnStartedAt!;
+        const newRemaining = gameState.turnTimeLimitMs! - newElapsed;
+        if (newRemaining <= 0 && !catchUpRef.current) {
+          catchUpRef.current = true;
+          catchUpExpiredTurns(roomCode, gameState)
+            .catch(e => console.error('[auto-pass catchUp] error:', e))
+            .finally(() => { catchUpRef.current = false; });
+        }
+      }, 3000 - elapsed);
+      return () => clearTimeout(guardTimer);
+    }
 
     if (remaining <= 0 && !catchUpRef.current) {
       // Time already expired — catch up all missed turns
