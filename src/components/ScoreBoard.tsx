@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Player } from '../game/types';
 import { cn } from '../utils/cn';
-import { Crown, Bot, User, Clock } from 'lucide-react';
+import { Bot, User, Clock } from 'lucide-react';
 import { useTranslation } from '../i18n/LanguageContext';
 
 interface ScoreBoardProps {
@@ -45,8 +45,6 @@ export function ScoreBoard({ players, currentPlayerIndex, myPlayerId, bagSize, t
       {players.map((player, idx) => {
         const isCurrentTurn = idx === currentPlayerIndex;
         const isMe = player.id === myPlayerId;
-        const sortedPlayers = [...players].sort((a, b) => b.score - a.score);
-        const isLeading = sortedPlayers[0]?.id === player.id && player.score > 0;
 
         return (
           <div
@@ -72,7 +70,6 @@ export function ScoreBoard({ players, currentPlayerIndex, myPlayerId, bagSize, t
                 {player.nickname}
                 {isMe && ` (${t('you')})`}
               </span>
-              {isLeading && <Crown size={10} className="inline ml-0.5 text-yellow-500" />}
               {isCurrentTurn && !remainingMs && (
                 <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse inline-block ml-1" />
               )}
@@ -93,7 +90,7 @@ export function ScoreBoard({ players, currentPlayerIndex, myPlayerId, bagSize, t
               )}
               <span className={cn(
                 'font-display font-bold tabular-nums',
-                isLeading ? 'text-primary' : 'text-foreground',
+                'text-foreground',
               )}>
                 {player.score}
               </span>

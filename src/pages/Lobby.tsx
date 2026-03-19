@@ -9,7 +9,7 @@ import {
 import { cn } from '../utils/cn';
 import {
   Users, Bot, Play, Plus, LogIn, Trophy, Copy, Check,
-  ArrowLeft, Gamepad2, RefreshCw, ChevronRight, X, BookOpen, Info, Trash2, Clock,
+  ArrowLeft, Gamepad2, ChevronRight, X, BookOpen, Info, Trash2, Clock,
 } from 'lucide-react';
 import { AILevel, GameState, Tile } from '../game/types';
 import { TileView } from '../components/TileView';
@@ -510,17 +510,7 @@ export function Lobby({ onNavigate, initialMode = 'menu', onModeChange }: LobbyP
         </button>
 
         <div className="bg-card rounded-2xl border border-border/50 p-6 shadow-sm space-y-5">
-          <div className="flex items-center justify-between">
-            <h2 className="font-display font-bold text-xl">{t('myGames')}</h2>
-            <button
-              onClick={() => loadGames()}
-              disabled={loadingGames}
-              className="p-2 rounded-lg hover:bg-muted transition-colors"
-              title={t('refresh')}
-            >
-              <RefreshCw size={16} className={cn(loadingGames && 'animate-spin')} />
-            </button>
-          </div>
+          <h2 className="font-display font-bold text-xl">{t('myGames')}</h2>
 
           {loadingGames ? (
             <div className="flex items-center justify-center py-8">
