@@ -244,6 +244,12 @@ export async function passPlayerTurn(
 
   const gameState = sanitizeGameState(snapshot.val() as GameState);
   const updatedState = passTurn(gameState, playerId);
+  // Manual pass = player is active → reset their auto-pass counter
+  if (updatedState.autoPassCounts?.[playerId]) {
+    const counts = { ...updatedState.autoPassCounts };
+    delete counts[playerId];
+    updatedState.autoPassCounts = counts;
+  }
 
   await set(ref(db, `rooms/${roomCode}`), stripUndefined(updatedState));
 

@@ -637,7 +637,8 @@ export function passTurn(state: GameState, playerId: string): GameState {
     consecutivePasses: newConsecutivePasses,
     winner,
     turnStartedAt: phase === 'finished' ? state.turnStartedAt : Date.now(),
-    autoPassCounts: resetAutoPass(state.autoPassCounts, playerId),
+    // Note: autoPassCounts NOT reset here — passTurn is also used for auto-passes.
+    // Manual pass resets it in passPlayerTurn (gameService.ts).
   };
 }
 
