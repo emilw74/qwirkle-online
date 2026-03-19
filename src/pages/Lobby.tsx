@@ -321,10 +321,17 @@ export function Lobby({ onNavigate }: LobbyProps) {
     setIsLoading(false);
   };
 
-  const handleRejoinGame = async (session: PlayerSession) => {
+  const handleRejoinGame = async (session: PlayerSession, gameState?: GameState) => {
     setIsLoading(true);
     setError('');
     try {
+      // Auto-start if host clicks a full waiting game
+      if (gameState?.phase === 'waiting'
+        && gameState.hostId === currentUid
+        && gameState.players.length >= gameState.maxPlayers) {
+        await startGameInRoom(session.roomCode);
+      }
+
       setPlayerId(session.playerId);
       setRoomCode(session.roomCode);
 
@@ -531,7 +538,7 @@ export function Lobby({ onNavigate }: LobbyProps) {
                     return (
                       <div key={session.roomCode} className="rounded-xl border border-border/50 overflow-hidden">
                         <button
-                          onClick={() => handleRejoinGame(session)}
+                          onClick={() => handleRejoinGame(session, gameState)}
                           disabled={isLoading}
                           className={cn(
                             'w-full p-3.5 text-left transition-all hover:shadow-md',
