@@ -37,8 +37,11 @@ function AppContent({ profile }: { profile: UserProfile }) {
     }
   }, []);
 
+  const [lobbyInitialMode, setLobbyInitialMode] = useState<'menu' | 'mygames'>('menu');
+
   const handleNavigateHome = () => {
     leaveGame();
+    setLobbyInitialMode('mygames');
     setPage('lobby');
   };
 
@@ -211,7 +214,7 @@ function AppContent({ profile }: { profile: UserProfile }) {
       ) : (
         <main className="max-w-4xl mx-auto px-4 py-6">
           {page === 'lobby' && (
-            <Lobby onNavigate={(p) => setPage(p)} />
+            <Lobby onNavigate={(p) => { setLobbyInitialMode('menu'); setPage(p); }} initialMode={lobbyInitialMode} />
           )}
           {page === 'leaderboard' && (
             <Leaderboard onBack={() => setPage('lobby')} />

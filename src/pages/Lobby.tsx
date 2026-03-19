@@ -19,6 +19,7 @@ import { LanguageToggle } from '../components/LanguageToggle';
 
 interface LobbyProps {
   onNavigate: (page: 'game' | 'leaderboard' | 'rules' | 'about') => void;
+  initialMode?: 'menu' | 'mygames';
 }
 
 // --- Mini Board for finished game detail ---
@@ -173,10 +174,10 @@ function formatDuration(ms: number): string {
   return parts.join(' ') || '<1min';
 }
 
-export function Lobby({ onNavigate }: LobbyProps) {
+export function Lobby({ onNavigate, initialMode = 'menu' }: LobbyProps) {
   const { t, lang } = useTranslation();
   const { uid, nickname, setPlayerId, setRoomCode, setGameState } = useGameStore();
-  const [mode, setMode] = useState<'menu' | 'create' | 'join' | 'waiting' | 'mygames'>('menu');
+  const [mode, setMode] = useState<'menu' | 'create' | 'join' | 'waiting' | 'mygames'>(initialMode);
   const [joinCode, setJoinCode] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
