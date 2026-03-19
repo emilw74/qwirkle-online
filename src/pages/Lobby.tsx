@@ -183,17 +183,29 @@ export function Lobby({ onNavigate }: LobbyProps) {
   const [deleteConfirm, setDeleteConfirm] = useState<{ roomCode: string; gameName: string; hasBots: boolean } | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  // Auto-refresh games list every 10 seconds (also triggers AI turns in background)
+  // Auto-refresh: only when some game needs background processing (not all waiting on me)
   const [tick, setTick] = useState(0);
   const loadingRef = useRef(false);
   loadingRef.current = loadingGames;
+  const gamesRef = useRef(playerGames);
+  gamesRef.current = playerGames;
   useEffect(() => {
     if (mode !== 'mygames') return;
     // Tick every second for countdown timers
     const tickInterval = setInterval(() => setTick(t => t + 1), 1_000);
-    // Full reload every 10 seconds (fetches game state, executes pending AI turns)
+    // Full reload every 10 seconds, but only if needed
     const refreshInterval = setInterval(() => {
-      if (!loadingRef.current) loadGames();
+      if (loadingRef.current) return;
+      const { active } = gamesRef.current;
+      // Refresh needed when any active game is not purely waiting on me:
+      // - phase 'waiting' (someone might join)
+      // - it's not my turn (bot or opponent could act, or timer could expire)
+      const needsRefresh = active.length === 0 || active.some(({ session, gameState }) => {
+        if (gameState.phase === 'waiting') return true;
+        const currentPlayer = gameState.players[gameState.currentPlayerIndex];
+        return currentPlayer?.id !== session.playerId;
+      });
+      if (needsRefresh) loadGames();
     }, 10_000);
     return () => {
       clearInterval(tickInterval);
