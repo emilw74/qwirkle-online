@@ -609,17 +609,21 @@ export function Lobby({ onNavigate, initialMode = 'menu', onModeChange, isSuperU
                                     {t('autoPassCount')} {myAutoPassCount}
                                   </span>
                                 )}
-                                {gameState.phase === 'playing' && gameStartedAt && (
-                                  <span className="text-xs text-muted-foreground/70">
-                                    ⏱ {formatDuration(gameDurationMs)}
-                                  </span>
-                                )}
-                                {gameState.turnTimeLimitMs && (
-                                  <span className="text-xs text-muted-foreground/50">
-                                    {formatTimeLimitDisplay(gameState.turnTimeLimitMs)}/{t('moveShort')}
-                                  </span>
-                                )}
                               </div>
+                              {(gameStartedAt || gameState.turnTimeLimitMs) && (
+                                <div className="flex items-center gap-2 mt-0.5">
+                                  {gameState.phase === 'playing' && gameStartedAt && (
+                                    <span className="text-xs text-muted-foreground/70">
+                                      ⏱ {formatDuration(gameDurationMs)}
+                                    </span>
+                                  )}
+                                  {gameState.turnTimeLimitMs && (
+                                    <span className="text-xs text-muted-foreground/50">
+                                      {formatTimeLimitDisplay(gameState.turnTimeLimitMs)}/{t('moveShort')}
+                                    </span>
+                                  )}
+                                </div>
+                              )}
                             </div>
                             <ChevronRight size={16} className="text-muted-foreground flex-shrink-0" />
                           </div>
