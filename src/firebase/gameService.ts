@@ -26,10 +26,6 @@ export async function catchUpExpiredTurns(roomCode: string, state: GameState): P
   let current = state;
   let iterations = 0;
 
-  // Pre-load AI and engine modules for in-memory catch-up
-  const { getAIMove, shouldAISwap } = await import('../game/ai');
-  const { applyMove: applyM, swapTiles: swapT, passTurn: passT } = await import('../game/engine');
-
   while (
     current.phase === 'playing' &&
     current.turnTimeLimitMs &&
@@ -55,13 +51,13 @@ export async function catchUpExpiredTurns(roomCode: string, state: GameState): P
 
       const swapResult = shouldAISwap(board, hand, aiLevel, bagLen);
       if (swapResult) {
-        current = swapT(current, swapResult, currentPlayer.id);
+        current = swapTiles(current, swapResult, currentPlayer.id);
       } else {
         const aiMove = getAIMove(board, hand, aiLevel, bagLen);
         if (aiMove) {
-          current = applyM(current, aiMove.tiles, currentPlayer.id);
+          current = applyMove(current, aiMove.tiles, currentPlayer.id);
         } else {
-          current = passT(current, currentPlayer.id);
+          current = passTurn(current, currentPlayer.id);
         }
       }
       // Restore turnStartedAt — AI turn is instantaneous, no time passes
