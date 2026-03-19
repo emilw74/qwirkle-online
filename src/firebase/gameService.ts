@@ -24,6 +24,11 @@ export async function catchUpExpiredTurns(roomCode: string, state: GameState): P
 
   const now = Date.now();
   let current = state;
+  let iterations = 0;
+
+  // Pre-load AI and engine modules for in-memory catch-up
+  const { getAIMove, shouldAISwap } = await import('../game/ai');
+  const { applyMove: applyM, swapTiles: swapT, passTurn: passT } = await import('../game/engine');
 
   while (
     current.phase === 'playing' &&
@@ -41,18 +46,27 @@ export async function catchUpExpiredTurns(roomCode: string, state: GameState): P
 
     if (currentPlayer.isAI) {
       // AI plays instantly — does NOT consume any clock time.
-      // Keep turnStartedAt unchanged so the next human turn starts at the same deadline.
+      // Compute AI move locally in-memory (no Firebase reads/writes).
+      const board = current.board || {};
+      const hand = currentPlayer.hand || [];
+      const aiLevel = currentPlayer.aiLevel || 'medium';
+      const bagLen = (current.bag || []).length;
       const preservedStart = current.turnStartedAt;
-      try {
-        await set(ref(db, `rooms/${roomCode}`), stripUndefined(current));
-        current = await executeAITurn(roomCode);
-        // Restore turnStartedAt — AI turn is instantaneous, no time passes
-        if (current.phase === 'playing') {
-          current.turnStartedAt = preservedStart;
+
+      const swapResult = shouldAISwap(board, hand, aiLevel, bagLen);
+      if (swapResult) {
+        current = swapT(current, swapResult, currentPlayer.id);
+      } else {
+        const aiMove = getAIMove(board, hand, aiLevel, bagLen);
+        if (aiMove) {
+          current = applyM(current, aiMove.tiles, currentPlayer.id);
+        } else {
+          current = passT(current, currentPlayer.id);
         }
-      } catch (e) {
-        console.error('[catchUp] AI turn error:', e);
-        break;
+      }
+      // Restore turnStartedAt — AI turn is instantaneous, no time passes
+      if (current.phase === 'playing') {
+        current.turnStartedAt = preservedStart;
       }
     } else {
       // Human player timed out — execute a pass.
@@ -68,6 +82,7 @@ export async function catchUpExpiredTurns(roomCode: string, state: GameState): P
       current = passState;
     }
 
+    iterations++;
   }
 
   // After catching up, set turnStartedAt to real time so the next turn timer works normally
@@ -75,9 +90,9 @@ export async function catchUpExpiredTurns(roomCode: string, state: GameState): P
     current.turnStartedAt = Date.now();
   }
 
-  // Save final state to Firebase
+  // Save final state to Firebase once at the end
   if (current !== state) {
-    console.log('[catchUp] Replayed expired turns for room:', roomCode,
+    console.log('[catchUp] room:', roomCode, '| iterations:', iterations,
       '| phase:', current.phase, '| currentPlayer:', current.players[current.currentPlayerIndex]?.nickname);
     await set(ref(db, `rooms/${roomCode}`), stripUndefined(current));
   }
