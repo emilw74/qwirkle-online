@@ -548,7 +548,7 @@ export function Lobby({ onNavigate }: LobbyProps) {
                                   {gameState.players.map((p, i) => (
                                     <span key={p.id}>
                                       {i > 0 && <span className="text-muted-foreground font-normal">{gameState.players.length === 2 ? ' vs ' : ', '}</span>}
-                                      <span className={p.isAI ? 'text-[#1a3a5c] dark:text-blue-300' : ''}>{p.nickname}</span>
+                                      <span className={p.isAI ? 'text-[#2563eb] dark:text-blue-300' : ''}>{p.nickname}</span>
                                       <span className="text-muted-foreground font-normal">: {p.score}</span>
                                     </span>
                                   ))}
