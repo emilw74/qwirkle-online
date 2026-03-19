@@ -704,6 +704,14 @@ export function Lobby({ onNavigate, initialMode = 'menu', onModeChange }: LobbyP
                                 </div>
                               )}
                             </div>
+                            <div className="border-t border-border/30 px-3.5 py-1.5 flex justify-end">
+                              <button
+                                onClick={() => handleDeleteFinished(session)}
+                                className="text-xs text-muted-foreground hover:text-destructive transition-colors"
+                              >
+                                {t('remove')}
+                              </button>
+                            </div>
                           </div>
                         ) : (
                           /* Normal finished game */
