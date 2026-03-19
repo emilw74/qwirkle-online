@@ -565,7 +565,9 @@ export function Lobby({ onNavigate }: LobbyProps) {
                                       ? 'bg-green-500/15 text-green-700 dark:text-green-400'
                                       : 'bg-muted text-muted-foreground',
                                 )}>
-                                  {gameState.phase === 'waiting' ? t('waiting') : isMyTurn ? t('yourTurn') : t('waitTurn')}
+                                  {gameState.phase === 'waiting'
+                                    ? `${t('waitingForPlayers')} (${gameState.players.length}/${gameState.maxPlayers})`
+                                    : isMyTurn ? t('yourTurn') : t('waitTurn')}
                                 </span>
                                 {gameState.phase === 'waiting' && (
                                   <span className="text-xs font-mono font-bold tracking-wider text-primary">{session.roomCode}</span>
@@ -757,7 +759,7 @@ export function Lobby({ onNavigate }: LobbyProps) {
   if (mode === 'waiting' && roomInfo) {
     const gameState = useGameStore.getState().gameState;
     const isHost = gameState?.hostId === useGameStore.getState().playerId;
-    const canStart = roomInfo.players.length >= 2;
+    const canStart = roomInfo.players.length >= 2 && roomInfo.players.length >= maxPlayers;
     const canAddAI = roomInfo.players.length < maxPlayers;
 
     return (
@@ -849,7 +851,7 @@ export function Lobby({ onNavigate }: LobbyProps) {
               data-testid="start-game"
             >
               <Play size={18} />
-              {canStart ? t('startGame') : t('needMinPlayers')}
+              {canStart ? t('startGame') : `${t('waitingForPlayers')} (${roomInfo.players.length}/${maxPlayers})`}
             </button>
           )}
 

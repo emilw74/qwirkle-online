@@ -182,6 +182,10 @@ export const translations = {
     pl: 'Potrzeba min. 2 graczy',
     en: 'Need at least 2 players',
   },
+  waitingForPlayers: {
+    pl: 'Czekamy na graczy',
+    en: 'Waiting for players',
+  },
   waitingForHost: {
     pl: 'Czekam na hosta...',
     en: 'Waiting for host...',
