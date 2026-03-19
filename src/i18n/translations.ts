@@ -168,11 +168,11 @@ export const translations = {
   },
   botMedium: {
     pl: 'Średni',
-    en: 'Medium',
+    en: 'Average',
   },
   botHard: {
-    pl: 'Trudny',
-    en: 'Hard',
+    pl: 'Ekspert',
+    en: 'Expert',
   },
   startGame: {
     pl: 'Rozpocznij grę',

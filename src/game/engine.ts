@@ -411,13 +411,15 @@ export function addPlayerToGame(state: GameState, playerId: string, nickname: st
 
 export function addAIPlayer(state: GameState, level: 'easy' | 'medium' | 'hard'): GameState {
   const aiId = `ai_${uuidv4().slice(0, 8)}`;
-  const aiNames: Record<string, string[]> = {
-    easy: ['Bot Łatwy', 'Nowicjusz', 'Początkujący'],
-    medium: ['Bot Średni', 'Strateg', 'Taktyk'],
-    hard: ['Bot Trudny', 'Mistrz', 'Ekspert'],
+  const aiNames: Record<string, string> = {
+    easy: 'Bot_Łatwy',
+    medium: 'Bot_Średni',
+    hard: 'Bot_Ekspert',
   };
-  const names = aiNames[level];
-  const nickname = names[Math.floor(Math.random() * names.length)];
+  // If there's already a bot with the same level, add a number suffix
+  const baseName = aiNames[level];
+  const existingCount = state.players.filter(p => p.isAI && p.aiLevel === level).length;
+  const nickname = existingCount > 0 ? `${baseName}_${existingCount + 1}` : baseName;
   
   const { drawn, remaining } = drawTiles(state.bag, HAND_SIZE);
   

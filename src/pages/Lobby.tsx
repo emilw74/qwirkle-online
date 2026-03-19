@@ -541,7 +541,19 @@ export function Lobby({ onNavigate }: LobbyProps) {
                         >
                           <div className="flex items-center justify-between gap-3">
                             <div className="flex-1 min-w-0">
-                              <div className="font-semibold text-sm truncate">{session.gameName}</div>
+                              {gameState.phase === 'playing' ? (
+                                <div className="font-semibold text-sm truncate">
+                                  {gameState.players.map((p, i) => (
+                                    <span key={p.id}>
+                                      {i > 0 && <span className="text-muted-foreground font-normal">{gameState.players.length === 2 ? ' vs ' : ', '}</span>}
+                                      <span className={p.isAI ? 'text-[#1a3a5c] dark:text-blue-300' : ''}>{p.nickname}</span>
+                                      <span className="text-muted-foreground font-normal">: {p.score}</span>
+                                    </span>
+                                  ))}
+                                </div>
+                              ) : (
+                                <div className="font-semibold text-sm truncate">{session.gameName}</div>
+                              )}
                               <div className="flex items-center gap-2 mt-1 flex-wrap">
                                 <span className={cn(
                                   'text-xs px-2 py-0.5 rounded-full font-medium',
@@ -555,11 +567,6 @@ export function Lobby({ onNavigate }: LobbyProps) {
                                 </span>
                                 {gameState.phase === 'waiting' && (
                                   <span className="text-xs font-mono font-bold tracking-wider text-primary">{session.roomCode}</span>
-                                )}
-                                {gameState.phase === 'playing' && gameState.players.length > 0 && (
-                                  <span className="text-xs text-muted-foreground">
-                                    {gameState.players.map(p => `${p.nickname}: ${p.score}`).join(' · ')}
-                                  </span>
                                 )}
                                 {gameState.phase === 'playing' && currentTurnPlayer && (
                                   <span className="text-xs text-muted-foreground">
