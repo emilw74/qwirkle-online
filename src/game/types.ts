@@ -60,6 +60,9 @@ export interface GameState {
   hostId: string;
   maxPlayers: number;
   winner: string | null;
+  // Turn timer
+  turnTimeLimitMs?: number; // max time per turn in milliseconds (default: 24h)
+  turnStartedAt?: number;  // timestamp when current turn started
 }
 
 export interface LeaderboardEntry {

@@ -1,6 +1,7 @@
+import { useState, useEffect } from 'react';
 import { Player } from '../game/types';
 import { cn } from '../utils/cn';
-import { Crown, Bot, User } from 'lucide-react';
+import { Crown, Bot, User, Clock } from 'lucide-react';
 import { useTranslation } from '../i18n/LanguageContext';
 
 interface ScoreBoardProps {
@@ -8,10 +9,36 @@ interface ScoreBoardProps {
   currentPlayerIndex: number;
   myPlayerId: string | null;
   bagSize: number;
+  turnTimeLimitMs?: number;
+  turnStartedAt?: number;
 }
 
-export function ScoreBoard({ players, currentPlayerIndex, myPlayerId, bagSize }: ScoreBoardProps) {
+function formatCountdown(remainingMs: number): string {
+  if (remainingMs <= 0) return '0:00:00';
+  const totalSec = Math.floor(remainingMs / 1000);
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}
+
+export function ScoreBoard({ players, currentPlayerIndex, myPlayerId, bagSize, turnTimeLimitMs, turnStartedAt }: ScoreBoardProps) {
   const { t } = useTranslation();
+  const [now, setNow] = useState(Date.now());
+
+  // Tick every second when timer is active
+  useEffect(() => {
+    if (!turnTimeLimitMs || !turnStartedAt) return;
+    const interval = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(interval);
+  }, [turnTimeLimitMs, turnStartedAt]);
+
+  const remainingMs = (turnTimeLimitMs && turnStartedAt)
+    ? Math.max(0, turnTimeLimitMs - (now - turnStartedAt))
+    : null;
+
+  const isUrgent = remainingMs !== null && remainingMs < 60_000; // less than 1 min
+  const isWarning = remainingMs !== null && remainingMs < 300_000 && !isUrgent; // less than 5 min
 
   return (
     <div className="flex items-center gap-2 w-full">
@@ -46,12 +73,24 @@ export function ScoreBoard({ players, currentPlayerIndex, myPlayerId, bagSize }:
                 {isMe && ` (${t('you')})`}
               </span>
               {isLeading && <Crown size={10} className="inline ml-0.5 text-yellow-500" />}
-              {isCurrentTurn && (
+              {isCurrentTurn && !remainingMs && (
                 <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse inline-block ml-1" />
               )}
             </div>
 
             <div className="flex items-center gap-1 flex-shrink-0">
+              {/* Countdown timer next to current player's score */}
+              {isCurrentTurn && remainingMs !== null && (
+                <span className={cn(
+                  'font-mono text-[10px] tabular-nums',
+                  isUrgent && 'text-destructive font-bold animate-pulse',
+                  isWarning && 'text-yellow-600 dark:text-yellow-400',
+                  !isUrgent && !isWarning && 'text-muted-foreground',
+                )}>
+                  <Clock size={9} className="inline mr-0.5 -mt-[1px]" />
+                  {formatCountdown(remainingMs)}
+                </span>
+              )}
               <span className={cn(
                 'font-display font-bold tabular-nums',
                 isLeading ? 'text-primary' : 'text-foreground',

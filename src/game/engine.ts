@@ -466,6 +466,7 @@ export function startGame(state: GameState): GameState {
     ...state,
     phase: 'playing',
     currentPlayerIndex: startingPlayer,
+    turnStartedAt: Date.now(),
   };
 }
 
@@ -552,6 +553,7 @@ export function applyMove(state: GameState, placedTiles: PlacedTile[], playerId:
     moves: [...state.moves, move],
     consecutivePasses: 0,
     winner,
+    turnStartedAt: Date.now(),
   };
 }
 
@@ -602,6 +604,7 @@ export function swapTiles(state: GameState, tilesToSwap: Tile[], playerId: strin
     currentPlayerIndex: nextPlayerIdx,
     moves: [...state.moves, move],
     consecutivePasses: state.consecutivePasses + 1,
+    turnStartedAt: Date.now(),
   };
 }
 
@@ -630,6 +633,7 @@ export function passTurn(state: GameState, playerId: string): GameState {
     phase,
     consecutivePasses: newConsecutivePasses,
     winner,
+    turnStartedAt: phase === 'finished' ? state.turnStartedAt : Date.now(),
   };
 }
 

@@ -72,6 +72,41 @@ export function Game({ onNavigate }: GameProps) {
     };
   }, [gameState?.currentPlayerIndex, gameState?.phase, roomCode]);
 
+  // Auto-pass when turn timer expires
+  const autoPassRef = useRef(false);
+  useEffect(() => {
+    if (!gameState || !roomCode || !playerId || gameState.phase !== 'playing') return;
+    if (!gameState.turnTimeLimitMs || !gameState.turnStartedAt) return;
+
+    const currentPlayer = gameState.players[gameState.currentPlayerIndex];
+    if (!currentPlayer || currentPlayer.isAI) return; // AI turns are handled by AI logic
+    if (currentPlayer.id !== playerId) return; // Only auto-pass for current client
+
+    const elapsed = Date.now() - gameState.turnStartedAt;
+    const remaining = gameState.turnTimeLimitMs - elapsed;
+
+    if (remaining <= 0 && !autoPassRef.current) {
+      // Time is already up, pass immediately
+      autoPassRef.current = true;
+      passPlayerTurn(roomCode, currentPlayer.id)
+        .catch(e => console.error('[auto-pass] error:', e))
+        .finally(() => { autoPassRef.current = false; });
+      return;
+    }
+
+    if (remaining > 0) {
+      autoPassRef.current = false;
+      const timer = setTimeout(() => {
+        if (autoPassRef.current) return;
+        autoPassRef.current = true;
+        passPlayerTurn(roomCode, currentPlayer.id)
+          .catch(e => console.error('[auto-pass] error:', e))
+          .finally(() => { autoPassRef.current = false; });
+      }, remaining);
+      return () => clearTimeout(timer);
+    }
+  }, [gameState?.currentPlayerIndex, gameState?.turnStartedAt, gameState?.phase, roomCode, playerId]);
+
   // Ensure game finalization (leaderboard, history, sessions) — idempotent fallback
   const finalizedRef = useRef<string | null>(null);
   useEffect(() => {
@@ -288,6 +323,8 @@ export function Game({ onNavigate }: GameProps) {
           currentPlayerIndex={gameState.currentPlayerIndex}
           myPlayerId={playerId}
           bagSize={(gameState.bag || []).length}
+          turnTimeLimitMs={gameState.turnTimeLimitMs}
+          turnStartedAt={gameState.turnStartedAt}
         />
       </div>
 

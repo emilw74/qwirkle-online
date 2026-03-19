@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useGameStore } from '../hooks/useGameStore';
 import {
   createRoom, joinRoom, addAIToRoom, startGameInRoom, subscribeToRoom,
@@ -9,7 +9,7 @@ import {
 import { cn } from '../utils/cn';
 import {
   Users, Bot, Play, Plus, LogIn, Trophy, Copy, Check,
-  ArrowLeft, Gamepad2, RefreshCw, ChevronRight, X, BookOpen, Info, Trash2,
+  ArrowLeft, Gamepad2, RefreshCw, ChevronRight, X, BookOpen, Info, Trash2, Clock,
 } from 'lucide-react';
 import { AILevel, GameState, Tile } from '../game/types';
 import { TileView } from '../components/TileView';
@@ -140,6 +140,24 @@ function FinishedGameDetail({ session, onClose }: { session: PlayerSession; onCl
   );
 }
 
+function formatTimeShort(ms: number): string {
+  if (ms <= 0) return '0:00';
+  const totalMin = Math.floor(ms / 60000);
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  if (h > 0) return `${h}h ${m > 0 ? m + 'min' : ''}`;
+  return `${m}min`;
+}
+
+function formatTimeLimitDisplay(ms: number): string {
+  const totalMin = Math.floor(ms / 60000);
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  if (h > 0 && m > 0) return `${h}h ${m}min`;
+  if (h > 0) return `${h}h`;
+  return `${m}min`;
+}
+
 export function Lobby({ onNavigate }: LobbyProps) {
   const { t, lang } = useTranslation();
   const { uid, nickname, setPlayerId, setRoomCode, setGameState } = useGameStore();
@@ -149,6 +167,8 @@ export function Lobby({ onNavigate }: LobbyProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [roomInfo, setRoomInfo] = useState<{ code: string; players: string[] } | null>(null);
   const [maxPlayers, setMaxPlayers] = useState(2);
+  const [turnTimeHours, setTurnTimeHours] = useState(24);
+  const [turnTimeMinutes, setTurnTimeMinutes] = useState(0);
   const [copied, setCopied] = useState(false);
   const [unsubscribe, setUnsubscribe] = useState<(() => void) | null>(null);
 
@@ -160,6 +180,14 @@ export function Lobby({ onNavigate }: LobbyProps) {
   // Delete game state
   const [deleteConfirm, setDeleteConfirm] = useState<{ roomCode: string; gameName: string; hasBots: boolean } | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  // Tick for active games timer display
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    if (mode !== 'mygames' || playerGames.active.length === 0) return;
+    const interval = setInterval(() => setTick(t => t + 1), 60_000); // update every minute
+    return () => clearInterval(interval);
+  }, [mode, playerGames.active.length]);
 
   const currentNick = nickname || t('defaultPlayer');
   const currentUid = uid || '';
@@ -181,7 +209,8 @@ export function Lobby({ onNavigate }: LobbyProps) {
     setIsLoading(true);
     setError('');
     try {
-      const { roomCode, playerId, gameState } = await createRoom(currentNick, maxPlayers, currentUid);
+      const turnTimeLimitMs = (turnTimeHours * 60 + turnTimeMinutes) * 60 * 1000;
+      const { roomCode, playerId, gameState } = await createRoom(currentNick, maxPlayers, currentUid, turnTimeLimitMs);
       setPlayerId(playerId);
       setRoomCode(roomCode);
       setGameState(gameState);
@@ -443,6 +472,12 @@ export function Lobby({ onNavigate }: LobbyProps) {
                     const isMyTurn = gameState.players[gameState.currentPlayerIndex]?.id === session.playerId;
                     const myPlayer = gameState.players.find(p => p.id === session.playerId);
                     const isHost = gameState.hostId === currentUid;
+                    const currentTurnPlayer = gameState.players[gameState.currentPlayerIndex];
+                    const remainingMs = (gameState.turnTimeLimitMs && gameState.turnStartedAt)
+                      ? Math.max(0, gameState.turnTimeLimitMs - (Date.now() - gameState.turnStartedAt))
+                      : null;
+                    // Use tick to force re-render
+                    void tick;
                     return (
                       <div key={session.roomCode} className="rounded-xl border border-border/50 overflow-hidden">
                         <button
@@ -459,7 +494,7 @@ export function Lobby({ onNavigate }: LobbyProps) {
                           <div className="flex items-center justify-between gap-3">
                             <div className="flex-1 min-w-0">
                               <div className="font-semibold text-sm truncate">{session.gameName}</div>
-                              <div className="flex items-center gap-2 mt-1">
+                              <div className="flex items-center gap-2 mt-1 flex-wrap">
                                 <span className={cn(
                                   'text-xs px-2 py-0.5 rounded-full font-medium',
                                   gameState.phase === 'waiting'
@@ -475,6 +510,20 @@ export function Lobby({ onNavigate }: LobbyProps) {
                                 )}
                                 {myPlayer && gameState.phase === 'playing' && (
                                   <span className="text-xs text-muted-foreground">{myPlayer.score} {t('pts')}</span>
+                                )}
+                                {gameState.phase === 'playing' && currentTurnPlayer && (
+                                  <span className="text-xs text-muted-foreground">
+                                    {t('turnOf')} {currentTurnPlayer.nickname}
+                                  </span>
+                                )}
+                                {gameState.phase === 'playing' && remainingMs !== null && (
+                                  <span className={cn(
+                                    'text-xs flex items-center gap-0.5',
+                                    remainingMs < 300_000 ? 'text-destructive' : 'text-muted-foreground',
+                                  )}>
+                                    <Clock size={10} />
+                                    {formatTimeShort(remainingMs)}
+                                  </span>
                                 )}
                               </div>
                             </div>
@@ -669,6 +718,17 @@ export function Lobby({ onNavigate }: LobbyProps) {
             ))}
           </div>
 
+          {/* Turn time limit info */}
+          {gameState?.turnTimeLimitMs && (
+            <div className="flex items-center gap-2 px-3 py-2.5 bg-muted/50 rounded-lg">
+              <Clock size={15} className="text-muted-foreground flex-shrink-0" />
+              <div className="text-sm">
+                <span className="text-muted-foreground">{t('timePerMove')}</span>{' '}
+                <span className="font-medium">{formatTimeLimitDisplay(gameState.turnTimeLimitMs)}</span>
+              </div>
+            </div>
+          )}
+
           {isHost && canAddAI && (
             <div className="space-y-2">
               <div className="text-sm font-medium text-muted-foreground">{t('addBot')}</div>
@@ -765,25 +825,78 @@ export function Lobby({ onNavigate }: LobbyProps) {
             )}
 
             {mode === 'create' && (
-              <div>
-                <label className="block text-sm font-medium mb-1.5">{t('maxPlayers')}</label>
-                <div className="flex gap-2">
-                  {[2, 3].map(n => (
-                    <button
-                      key={n}
-                      onClick={() => setMaxPlayers(n)}
-                      className={cn(
-                        'flex-1 py-2.5 rounded-lg border text-sm font-medium transition-all',
-                        maxPlayers === n
-                          ? 'bg-primary text-primary-foreground border-primary'
-                          : 'border-border hover:bg-muted',
-                      )}
-                    >
-                      {n} {t('nPlayers')}
-                    </button>
-                  ))}
+              <>
+                <div>
+                  <label className="block text-sm font-medium mb-1.5">{t('maxPlayers')}</label>
+                  <div className="flex gap-2">
+                    {[2, 3].map(n => (
+                      <button
+                        key={n}
+                        onClick={() => setMaxPlayers(n)}
+                        className={cn(
+                          'flex-1 py-2.5 rounded-lg border text-sm font-medium transition-all',
+                          maxPlayers === n
+                            ? 'bg-primary text-primary-foreground border-primary'
+                            : 'border-border hover:bg-muted',
+                        )}
+                      >
+                        {n} {t('nPlayers')}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1.5">{t('turnTimeLimit')}</label>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          type="number"
+                          min={0}
+                          max={48}
+                          value={turnTimeHours}
+                          onChange={e => setTurnTimeHours(Math.min(48, Math.max(0, parseInt(e.target.value) || 0)))}
+                          className="w-16 px-2 py-2 rounded-lg border border-input bg-background text-foreground text-sm text-center"
+                        />
+                        <span className="text-sm text-muted-foreground">{t('hours')}</span>
+                        <input
+                          type="number"
+                          min={0}
+                          max={59}
+                          step={5}
+                          value={turnTimeMinutes}
+                          onChange={e => setTurnTimeMinutes(Math.min(59, Math.max(0, parseInt(e.target.value) || 0)))}
+                          className="w-16 px-2 py-2 rounded-lg border border-input bg-background text-foreground text-sm text-center"
+                        />
+                        <span className="text-sm text-muted-foreground">{t('minutes')}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex gap-1.5 mt-1.5 flex-wrap">
+                    {[
+                      { h: 0, m: 5, label: '5min' },
+                      { h: 0, m: 15, label: '15min' },
+                      { h: 1, m: 0, label: '1h' },
+                      { h: 6, m: 0, label: '6h' },
+                      { h: 24, m: 0, label: '24h' },
+                    ].map(preset => (
+                      <button
+                        key={preset.label}
+                        onClick={() => { setTurnTimeHours(preset.h); setTurnTimeMinutes(preset.m); }}
+                        className={cn(
+                          'px-2.5 py-1 rounded-md border text-xs font-medium transition-all',
+                          turnTimeHours === preset.h && turnTimeMinutes === preset.m
+                            ? 'bg-primary/10 text-primary border-primary/30'
+                            : 'border-border hover:bg-muted text-muted-foreground',
+                        )}
+                      >
+                        {preset.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </>
             )}
 
             {error && (

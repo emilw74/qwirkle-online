@@ -33,15 +33,19 @@ function stripUndefined<T>(obj: T): T {
 
 // --- Room Management ---
 
+const DEFAULT_TURN_TIME_MS = 24 * 60 * 60 * 1000; // 24h
+
 export async function createRoom(
   hostNickname: string,
   maxPlayers: number,
-  uid: string
+  uid: string,
+  turnTimeLimitMs?: number
 ): Promise<{ roomCode: string; playerId: string; gameState: GameState }> {
   const roomCode = generateRoomCode();
   // Use uid as playerId for consistent identification across devices
   const playerId = uid;
   const gameState = createGameState(roomCode, playerId, hostNickname, maxPlayers);
+  gameState.turnTimeLimitMs = turnTimeLimitMs || DEFAULT_TURN_TIME_MS;
 
   await set(ref(db, `rooms/${roomCode}`), stripUndefined(gameState));
   return { roomCode, playerId, gameState };

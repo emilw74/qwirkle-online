@@ -445,6 +445,32 @@ export const translations = {
     pl: 'Gra usunięta',
     en: 'Game deleted',
   },
+
+  // ===== Turn timer =====
+  turnTimeLimit: {
+    pl: 'Czas na ruch',
+    en: 'Time per move',
+  },
+  hours: {
+    pl: 'godz.',
+    en: 'hours',
+  },
+  minutes: {
+    pl: 'min.',
+    en: 'min.',
+  },
+  turnOf: {
+    pl: 'Ruch:',
+    en: 'Turn:',
+  },
+  timePerMove: {
+    pl: 'Czas na ruch:',
+    en: 'Time per move:',
+  },
+  autoPassInfo: {
+    pl: 'Po upływie czasu nastąpi automatyczny pas.',
+    en: 'Auto-pass when time runs out.',
+  },
 } as const;
 
 export type TranslationKey = keyof typeof translations;
