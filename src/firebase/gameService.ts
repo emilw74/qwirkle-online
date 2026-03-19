@@ -24,14 +24,11 @@ export async function catchUpExpiredTurns(roomCode: string, state: GameState): P
 
   const now = Date.now();
   let current = state;
-  // Allow enough iterations: up to 120 catch-up cycles (e.g. 60 min / 30s timer = 120)
-  let safetyLimit = 120;
 
   while (
     current.phase === 'playing' &&
     current.turnTimeLimitMs &&
-    current.turnStartedAt &&
-    safetyLimit > 0
+    current.turnStartedAt
   ) {
     const elapsed = now - current.turnStartedAt;
     if (elapsed <= current.turnTimeLimitMs) break; // current turn still has time
@@ -72,7 +69,6 @@ export async function catchUpExpiredTurns(roomCode: string, state: GameState): P
       current = passState;
     }
 
-    safetyLimit--;
   }
 
   // After catching up, set turnStartedAt to real time so the next turn timer works normally
