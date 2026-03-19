@@ -556,8 +556,10 @@ export function Lobby({ onNavigate }: LobbyProps) {
                                 {gameState.phase === 'waiting' && (
                                   <span className="text-xs font-mono font-bold tracking-wider text-primary">{session.roomCode}</span>
                                 )}
-                                {myPlayer && gameState.phase === 'playing' && (
-                                  <span className="text-xs text-muted-foreground">{myPlayer.score} {t('pts')}</span>
+                                {gameState.phase === 'playing' && gameState.players.length > 0 && (
+                                  <span className="text-xs text-muted-foreground">
+                                    {gameState.players.map(p => `${p.nickname}: ${p.score}`).join(' · ')}
+                                  </span>
                                 )}
                                 {gameState.phase === 'playing' && currentTurnPlayer && (
                                   <span className="text-xs text-muted-foreground">
