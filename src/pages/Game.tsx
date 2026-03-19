@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useGameStore } from '../hooks/useGameStore';
 import { Board } from '../components/Board';
 import { PlayerHand } from '../components/PlayerHand';
@@ -195,6 +195,15 @@ export function Game({ onNavigate }: GameProps) {
   const myHand = myPlayer?.hand || [];
   const board = gameState.board || {};
   const placedIds = new Set(placedTilesThisTurn.map(t => t.id));
+
+  // Compute preview score reactively as tiles are placed
+  const previewScore = useMemo(() => {
+    if (placedTilesThisTurn.length === 0) return 0;
+    const tempBoard = boardFromRecord(board);
+    const isFirstMove = tempBoard.size === 0;
+    const result = validateMove(tempBoard, placedTilesThisTurn, isFirstMove);
+    return result.valid ? result.score : 0;
+  }, [placedTilesThisTurn, board]);
 
   // Get the last non-swap move's tile positions for highlighting
   const lastMovePositions: Set<string> = new Set();
@@ -416,6 +425,7 @@ export function Game({ onNavigate }: GameProps) {
           showLastMove={showLastMove}
           onToggleLastMove={handleToggleLastMove}
           hasLastMove={(gameState.moves || []).some(m => !m.isSwap && m.tiles?.length > 0)}
+          previewScore={previewScore}
         />
       </div>
 
