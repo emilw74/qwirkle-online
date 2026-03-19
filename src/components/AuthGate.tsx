@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { signInWithGoogle, getUserProfile, onAuthChange, UserProfile } from '../firebase/authService';
+import { signInWithGoogle, getUserProfile, onAuthChange, signOut, UserProfile } from '../firebase/authService';
+import { isUserBanned } from '../firebase/gameService';
 import { cn } from '../utils/cn';
 import { LogIn } from 'lucide-react';
 import { useTranslation } from '../i18n/LanguageContext';
@@ -15,11 +16,22 @@ export function AuthGate({ children }: AuthGateProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [signingIn, setSigningIn] = useState(false);
+  const [banned, setBanned] = useState(false);
 
   useEffect(() => {
     const unsub = onAuthChange(async (user) => {
       if (user) {
         try {
+          // Check if user is banned
+          const isBanned = await isUserBanned(user.uid);
+          if (isBanned) {
+            setBanned(true);
+            await signOut();
+            setLoading(false);
+            return;
+          }
+          setBanned(false);
+
           const p = await getUserProfile(user.uid);
           if (p) {
             setProfile(p);
@@ -49,8 +61,17 @@ export function AuthGate({ children }: AuthGateProps) {
   const handleSignIn = async () => {
     setSigningIn(true);
     setError('');
+    setBanned(false);
     try {
       const p = await signInWithGoogle();
+      // Check ban after sign-in
+      const isBanned = await isUserBanned(p.uid);
+      if (isBanned) {
+        setBanned(true);
+        await signOut();
+        setSigningIn(false);
+        return;
+      }
       setProfile(p);
     } catch (e: any) {
       if (e.code === 'auth/popup-closed-by-user') {
@@ -134,7 +155,13 @@ export function AuthGate({ children }: AuthGateProps) {
             )}
           </button>
 
-          {error && (
+          {banned && (
+            <div className="p-3 bg-destructive/10 text-destructive rounded-lg text-sm font-medium">
+              {t('authBanned')}
+            </div>
+          )}
+
+          {error && !banned && (
             <div className="p-3 bg-destructive/10 text-destructive rounded-lg text-sm">
               {error}
             </div>

@@ -731,71 +731,190 @@ export async function adminDeleteAllFinishedGames(): Promise<{ deletedHistory: n
   return { deletedHistory, deletedSessions };
 }
 
-/** Get all active rooms with their players */
-export interface ActiveRoomInfo {
-  roomCode: string;
-  players: { id: string; nickname: string; isAI?: boolean }[];
-  phase: string;
-  hostId?: string;
+/** Get all registered players (unique profiles) */
+export interface AdminPlayerInfo {
+  uid: string;
+  nickname: string;
+  email: string | null;
+  photoURL: string | null;
+  banned: boolean;
+  createdAt: number;
 }
 
-export async function adminGetActiveRooms(): Promise<ActiveRoomInfo[]> {
-  const roomsSnap = await get(ref(db, 'rooms'));
-  if (!roomsSnap.exists()) return [];
+export async function adminGetAllPlayers(): Promise<AdminPlayerInfo[]> {
+  const profilesSnap = await get(ref(db, 'profiles'));
+  if (!profilesSnap.exists()) return [];
 
-  const rooms = roomsSnap.val() as Record<string, GameState>;
-  const result: ActiveRoomInfo[] = [];
+  const profiles = profilesSnap.val() as Record<string, {
+    uid: string; nickname: string; email: string | null;
+    photoURL: string | null; banned?: boolean; createdAt: number;
+  }>;
 
-  for (const [roomCode, room] of Object.entries(rooms)) {
-    result.push({
-      roomCode,
-      players: (room.players || []).map((p: Player) => ({
-        id: p.id,
-        nickname: p.nickname,
-        isAI: p.isAI || false,
-      })),
-      phase: room.phase || 'unknown',
-      hostId: room.hostId,
-    });
-  }
-
-  return result;
+  return Object.entries(profiles).map(([uid, p]) => ({
+    uid,
+    nickname: p.nickname,
+    email: p.email || null,
+    photoURL: p.photoURL || null,
+    banned: p.banned === true,
+    createdAt: p.createdAt || 0,
+  }));
 }
 
-/** Update a player's nickname in an active room (admin override) */
-export async function adminUpdatePlayerNickInRoom(
-  roomCode: string,
-  playerId: string,
-  newNickname: string
-): Promise<void> {
+/** Admin: update a player's nickname (profile + leaderboard + active rooms + sessions + history) */
+export async function adminUpdatePlayerNick(uid: string, newNickname: string): Promise<void> {
+  // Reuse the existing updateNickname from authService — import it here would create circular dep.
+  // So we do it inline:
   const trimmed = newNickname.trim();
   if (!trimmed || trimmed.length > 16) {
     throw new Error('Nick musi mieć 1-16 znaków');
   }
 
-  const roomSnap = await get(ref(db, `rooms/${roomCode}`));
-  if (!roomSnap.exists()) throw new Error('Room not found');
+  // Get old nickname
+  const profileSnap = await get(ref(db, `profiles/${uid}`));
+  if (!profileSnap.exists()) throw new Error('Profile not found');
+  const oldNick = (profileSnap.val() as { nickname: string }).nickname;
+  if (oldNick === trimmed) return;
 
-  const room = roomSnap.val();
-  const players = room.players || [];
-  let found = false;
-  for (let i = 0; i < players.length; i++) {
-    if (players[i].id === playerId) {
-      players[i].nickname = trimmed;
-      found = true;
+  // 1. Profile
+  await update(ref(db, `profiles/${uid}`), { nickname: trimmed });
+
+  // 2. Leaderboard
+  const lbSnap = await get(ref(db, `leaderboard/${uid}`));
+  if (lbSnap.exists()) {
+    await update(ref(db, `leaderboard/${uid}`), { nickname: trimmed });
+  }
+
+  // 3. Active rooms
+  const roomsSnap = await get(ref(db, 'rooms'));
+  if (roomsSnap.exists()) {
+    const rooms = roomsSnap.val() as Record<string, { players: Player[] }>;
+    for (const [roomCode, room] of Object.entries(rooms)) {
+      const players = room.players || [];
+      let updated = false;
+      for (let i = 0; i < players.length; i++) {
+        if (players[i].id === uid) {
+          players[i].nickname = trimmed;
+          updated = true;
+        }
+      }
+      if (updated) {
+        await update(ref(db, `rooms/${roomCode}`), { players });
+      }
     }
   }
-  if (!found) throw new Error('Player not found in room');
 
-  await update(ref(db, `rooms/${roomCode}`), { players });
-
-  // Also update the player's profile and leaderboard (not for AI)
-  if (!playerId.startsWith('ai-')) {
-    await update(ref(db, `profiles/${playerId}`), { nickname: trimmed });
-
-    const lbSnap = await get(ref(db, `leaderboard/${playerId}`));
-    if (lbSnap.exists()) {
-      await update(ref(db, `leaderboard/${playerId}`), { nickname: trimmed });
+  // 4. All playerSessions
+  const allSessionsSnap = await get(ref(db, 'playerSessions'));
+  if (allSessionsSnap.exists()) {
+    const allSessions = allSessionsSnap.val() as Record<string, Record<string, {
+      gameName?: string;
+      finalPlayers?: { nickname: string; score: number; isAI?: boolean }[];
+      winner?: string;
+    }>>;
+    for (const [sessionUid, rooms] of Object.entries(allSessions)) {
+      for (const [roomCode, session] of Object.entries(rooms)) {
+        const updates: Record<string, unknown> = {};
+        if (session.gameName?.includes(oldNick)) {
+          updates.gameName = session.gameName.split(oldNick).join(trimmed);
+        }
+        if (session.finalPlayers?.some(p => p.nickname === oldNick && !p.isAI)) {
+          updates.finalPlayers = session.finalPlayers.map(p =>
+            p.nickname === oldNick && !p.isAI ? { ...p, nickname: trimmed } : p
+          );
+        }
+        if (session.winner === oldNick) updates.winner = trimmed;
+        if (Object.keys(updates).length > 0) {
+          await update(ref(db, `playerSessions/${sessionUid}/${roomCode}`), updates);
+        }
+      }
     }
   }
+
+  // 5. gameHistory
+  const histSnap = await get(ref(db, 'gameHistory'));
+  if (histSnap.exists()) {
+    const history = histSnap.val() as Record<string, {
+      players: { nickname: string; score: number; isAI?: boolean }[];
+      winner: string;
+    }>;
+    for (const [key, entry] of Object.entries(history)) {
+      if (!entry.players.some(p => p.nickname === oldNick && !p.isAI)) continue;
+      const updates: Record<string, unknown> = {
+        players: entry.players.map(p =>
+          p.nickname === oldNick && !p.isAI ? { ...p, nickname: trimmed } : p
+        ),
+      };
+      if (entry.winner === oldNick) updates.winner = trimmed;
+      await update(ref(db, `gameHistory/${key}`), updates);
+    }
+  }
+}
+
+/** Ban a user: mark profile as banned, remove all their games and data */
+export async function adminBanUser(uid: string): Promise<void> {
+  // 1. Mark profile as banned
+  await update(ref(db, `profiles/${uid}`), { banned: true });
+
+  // 2. Remove from leaderboard
+  await remove(ref(db, `leaderboard/${uid}`)).catch(() => {});
+
+  // 3. Remove all their playerSessions
+  await remove(ref(db, `playerSessions/${uid}`)).catch(() => {});
+
+  // 4. Remove rooms they're in (or remove them from rooms)
+  const roomsSnap = await get(ref(db, 'rooms'));
+  if (roomsSnap.exists()) {
+    const rooms = roomsSnap.val() as Record<string, GameState>;
+    for (const [roomCode, room] of Object.entries(rooms)) {
+      const isInRoom = (room.players || []).some((p: Player) => p.id === uid);
+      if (isInRoom) {
+        // If this user is the only human, delete the entire room
+        const humanPlayers = (room.players || []).filter((p: Player) => !p.isAI && p.id !== uid);
+        if (humanPlayers.length === 0) {
+          await remove(ref(db, `rooms/${roomCode}`));
+          // Also remove other players' sessions for this room
+          const sessSnap = await get(ref(db, 'playerSessions'));
+          if (sessSnap.exists()) {
+            const allSess = sessSnap.val() as Record<string, Record<string, unknown>>;
+            for (const [sUid, sRooms] of Object.entries(allSess)) {
+              if (sRooms[roomCode]) {
+                await remove(ref(db, `playerSessions/${sUid}/${roomCode}`)).catch(() => {});
+              }
+            }
+          }
+        } else {
+          // Remove this player from the room
+          const updatedPlayers = (room.players || []).filter((p: Player) => p.id !== uid);
+          await update(ref(db, `rooms/${roomCode}`), { players: updatedPlayers });
+        }
+      }
+    }
+  }
+
+  // 5. Remove their entries from gameHistory (games with only this human)
+  // Note: we keep multi-player game history intact, just remove solo bot games
+  const histSnap = await get(ref(db, 'gameHistory'));
+  if (histSnap.exists()) {
+    const history = histSnap.val() as Record<string, {
+      players: { nickname: string; isAI?: boolean }[];
+    }>;
+    for (const [key, entry] of Object.entries(history)) {
+      const humanPlayers = entry.players.filter(p => !p.isAI);
+      if (humanPlayers.length <= 1) {
+        // Solo game with bots — delete
+        await remove(ref(db, `gameHistory/${key}`));
+      }
+    }
+  }
+}
+
+/** Unban a user */
+export async function adminUnbanUser(uid: string): Promise<void> {
+  await update(ref(db, `profiles/${uid}`), { banned: false });
+}
+
+/** Check if a user is banned (used by AuthGate) */
+export async function isUserBanned(uid: string): Promise<boolean> {
+  const snap = await get(ref(db, `profiles/${uid}/banned`));
+  return snap.exists() && snap.val() === true;
 }

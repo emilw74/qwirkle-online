@@ -2,13 +2,16 @@ import { useState, useEffect } from 'react';
 import {
   adminClearLeaderboard,
   adminDeleteAllFinishedGames,
-  adminGetActiveRooms,
-  adminUpdatePlayerNickInRoom,
-  ActiveRoomInfo,
+  adminGetAllPlayers,
+  adminUpdatePlayerNick,
+  adminBanUser,
+  adminUnbanUser,
+  AdminPlayerInfo,
+  SUPERUSER_EMAIL,
 } from '../firebase/gameService';
 import { useTranslation } from '../i18n/LanguageContext';
 import { cn } from '../utils/cn';
-import { ArrowLeft, Trash2, Trophy, Users, Pencil, AlertTriangle, Check, Loader2 } from 'lucide-react';
+import { ArrowLeft, Trash2, Trophy, Users, Pencil, AlertTriangle, Check, Loader2, Ban, ShieldCheck } from 'lucide-react';
 
 interface AdminPanelProps {
   onBack: () => void;
@@ -18,29 +21,35 @@ export function AdminPanel({ onBack }: AdminPanelProps) {
   const { t } = useTranslation();
 
   // --- State ---
-  const [activeRooms, setActiveRooms] = useState<ActiveRoomInfo[]>([]);
+  const [players, setPlayers] = useState<AdminPlayerInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   // Nick editing
-  const [editingPlayer, setEditingPlayer] = useState<{ roomCode: string; playerId: string; currentNick: string } | null>(null);
+  const [editingPlayer, setEditingPlayer] = useState<{ uid: string; currentNick: string } | null>(null);
   const [nickInput, setNickInput] = useState('');
 
   // Confirmation dialogs
   const [confirmAction, setConfirmAction] = useState<'leaderboard' | 'games' | null>(null);
+  const [confirmBan, setConfirmBan] = useState<AdminPlayerInfo | null>(null);
 
   useEffect(() => {
-    loadActiveRooms();
+    loadPlayers();
   }, []);
 
-  async function loadActiveRooms() {
+  async function loadPlayers() {
     setLoading(true);
     try {
-      const rooms = await adminGetActiveRooms();
-      setActiveRooms(rooms);
+      const all = await adminGetAllPlayers();
+      // Sort: banned last, then by nickname
+      all.sort((a, b) => {
+        if (a.banned !== b.banned) return a.banned ? 1 : -1;
+        return a.nickname.localeCompare(b.nickname);
+      });
+      setPlayers(all);
     } catch (e) {
-      console.error('Error loading active rooms:', e);
+      console.error('Error loading players:', e);
     } finally {
       setLoading(false);
     }
@@ -79,12 +88,40 @@ export function AdminPanel({ onBack }: AdminPanelProps) {
 
   async function handleSaveNick() {
     if (!editingPlayer) return;
-    setActionLoading(`nick-${editingPlayer.playerId}`);
+    setActionLoading(`nick-${editingPlayer.uid}`);
     try {
-      await adminUpdatePlayerNickInRoom(editingPlayer.roomCode, editingPlayer.playerId, nickInput);
+      await adminUpdatePlayerNick(editingPlayer.uid, nickInput);
       showMessage('success', t('adminNickUpdated'));
       setEditingPlayer(null);
-      await loadActiveRooms();
+      await loadPlayers();
+    } catch (e: any) {
+      showMessage('error', e.message || 'Error');
+    } finally {
+      setActionLoading(null);
+    }
+  }
+
+  async function handleBan() {
+    if (!confirmBan) return;
+    setActionLoading(`ban-${confirmBan.uid}`);
+    setConfirmBan(null);
+    try {
+      await adminBanUser(confirmBan.uid);
+      showMessage('success', t('adminBanSuccess').replace('{nick}', confirmBan.nickname));
+      await loadPlayers();
+    } catch (e: any) {
+      showMessage('error', e.message || 'Error');
+    } finally {
+      setActionLoading(null);
+    }
+  }
+
+  async function handleUnban(player: AdminPlayerInfo) {
+    setActionLoading(`unban-${player.uid}`);
+    try {
+      await adminUnbanUser(player.uid);
+      showMessage('success', t('adminUnbanSuccess').replace('{nick}', player.nickname));
+      await loadPlayers();
     } catch (e: any) {
       showMessage('error', e.message || 'Error');
     } finally {
@@ -153,66 +190,110 @@ export function AdminPanel({ onBack }: AdminPanelProps) {
         </button>
       </div>
 
-      {/* Section 3: Active Games — Nick Editing */}
+      {/* Section 3: Players — Nick editing + Ban/Unban */}
       <div className="bg-card rounded-xl border border-border/50 p-4 space-y-3">
         <div className="flex items-center gap-2">
           <Users size={18} className="text-blue-500" />
-          <h3 className="font-semibold text-sm">{t('adminActiveGames')}</h3>
+          <h3 className="font-semibold text-sm">{t('adminPlayers')}</h3>
         </div>
-        <p className="text-xs text-muted-foreground">{t('adminActiveGamesDesc')}</p>
+        <p className="text-xs text-muted-foreground">{t('adminPlayersDesc')}</p>
 
         {loading ? (
           <div className="flex items-center justify-center py-4">
             <Loader2 size={20} className="animate-spin text-muted-foreground" />
           </div>
-        ) : activeRooms.length === 0 ? (
+        ) : players.length === 0 ? (
           <div className="text-center text-xs text-muted-foreground py-4">
-            {t('adminNoActiveGames')}
+            {t('adminNoPlayers')}
           </div>
         ) : (
-          <div className="space-y-3">
-            {activeRooms.map((room) => (
-              <div key={room.roomCode} className="bg-muted/30 rounded-lg p-3 space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="font-mono text-xs text-muted-foreground">{room.roomCode}</div>
-                  <div className={cn(
-                    'text-xs px-2 py-0.5 rounded-full',
-                    room.phase === 'playing' ? 'bg-green-500/10 text-green-600 dark:text-green-400' :
-                    room.phase === 'waiting' ? 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400' :
-                    'bg-muted text-muted-foreground',
-                  )}>
-                    {room.phase}
-                  </div>
-                </div>
-                <div className="space-y-1">
-                  {room.players.map((player) => (
-                    <div key={player.id} className="flex items-center justify-between gap-2 text-sm">
-                      <span className={cn('truncate', player.isAI && 'text-muted-foreground italic')}>
-                        {player.nickname}
-                        {player.isAI && ' 🤖'}
-                      </span>
-                      {!player.isAI && (
+          <div className="space-y-2">
+            {players.map((player) => {
+              const isSuperUser = player.email === SUPERUSER_EMAIL;
+              return (
+                <div
+                  key={player.uid}
+                  className={cn(
+                    'rounded-lg p-3 space-y-1.5',
+                    player.banned ? 'bg-destructive/5 border border-destructive/20' : 'bg-muted/30',
+                  )}
+                >
+                  {/* Row 1: avatar + nick + actions */}
+                  <div className="flex items-center gap-2">
+                    {player.photoURL ? (
+                      <img src={player.photoURL} alt="" className="w-7 h-7 rounded-full flex-shrink-0" referrerPolicy="no-referrer" />
+                    ) : (
+                      <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold text-primary flex-shrink-0">
+                        {player.nickname.charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className={cn('font-medium text-sm truncate', player.banned && 'line-through text-muted-foreground')}>
+                          {player.nickname}
+                        </span>
+                        {player.banned && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-destructive/10 text-destructive font-medium flex-shrink-0">
+                            BAN
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-[11px] text-muted-foreground truncate">{player.email || player.uid}</div>
+                    </div>
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      {/* Edit nick */}
+                      {!player.banned && (
                         <button
                           onClick={() => {
-                            setEditingPlayer({ roomCode: room.roomCode, playerId: player.id, currentNick: player.nickname });
+                            setEditingPlayer({ uid: player.uid, currentNick: player.nickname });
                             setNickInput(player.nickname);
                           }}
-                          className="p-1 rounded hover:bg-muted transition-colors flex-shrink-0"
+                          className="p-1.5 rounded hover:bg-muted transition-colors"
                           title={t('adminEditNick')}
                         >
                           <Pencil size={14} className="text-muted-foreground" />
                         </button>
                       )}
+                      {/* Ban / Unban — don't show for superuser */}
+                      {!isSuperUser && (
+                        player.banned ? (
+                          <button
+                            onClick={() => handleUnban(player)}
+                            disabled={actionLoading !== null}
+                            className="p-1.5 rounded hover:bg-green-500/10 transition-colors"
+                            title={t('adminUnban')}
+                          >
+                            {actionLoading === `unban-${player.uid}` ? (
+                              <Loader2 size={14} className="animate-spin text-muted-foreground" />
+                            ) : (
+                              <ShieldCheck size={14} className="text-green-600 dark:text-green-400" />
+                            )}
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => setConfirmBan(player)}
+                            disabled={actionLoading !== null}
+                            className="p-1.5 rounded hover:bg-destructive/10 transition-colors"
+                            title={t('adminBan')}
+                          >
+                            {actionLoading === `ban-${player.uid}` ? (
+                              <Loader2 size={14} className="animate-spin text-muted-foreground" />
+                            ) : (
+                              <Ban size={14} className="text-destructive/60" />
+                            )}
+                          </button>
+                        )
+                      )}
                     </div>
-                  ))}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
         <button
-          onClick={loadActiveRooms}
+          onClick={loadPlayers}
           disabled={loading}
           className="w-full py-2 rounded-lg border border-border text-sm font-medium hover:bg-muted/50 transition-colors disabled:opacity-50"
         >
@@ -220,7 +301,7 @@ export function AdminPanel({ onBack }: AdminPanelProps) {
         </button>
       </div>
 
-      {/* Confirmation dialog */}
+      {/* Confirmation dialog — leaderboard / games */}
       {confirmAction && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="bg-card rounded-2xl border border-border p-5 max-w-sm w-full shadow-xl space-y-4">
@@ -249,14 +330,40 @@ export function AdminPanel({ onBack }: AdminPanelProps) {
         </div>
       )}
 
+      {/* Confirmation dialog — ban */}
+      {confirmBan && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-card rounded-2xl border border-border p-5 max-w-sm w-full shadow-xl space-y-4">
+            <div className="flex items-center gap-2 text-destructive">
+              <Ban size={20} />
+              <h3 className="font-display font-bold text-lg">{t('adminBanConfirmTitle')}</h3>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              {t('adminBanConfirmDesc').replace('{nick}', confirmBan.nickname)}
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setConfirmBan(null)}
+                className="flex-1 py-2.5 rounded-lg border border-border text-sm font-medium hover:bg-muted transition-colors"
+              >
+                {t('cancel')}
+              </button>
+              <button
+                onClick={handleBan}
+                className="flex-1 py-2.5 rounded-lg bg-destructive text-destructive-foreground text-sm font-medium hover:opacity-90 transition-all"
+              >
+                {t('adminBanBtn')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Nick edit modal */}
       {editingPlayer && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="bg-card rounded-2xl border border-border p-5 max-w-sm w-full shadow-xl space-y-4">
             <h3 className="font-display font-bold text-lg">{t('adminEditNickTitle')}</h3>
-            <p className="text-xs text-muted-foreground">
-              {t('adminEditNickRoom')}: <span className="font-mono">{editingPlayer.roomCode}</span>
-            </p>
             <input
               type="text"
               value={nickInput}

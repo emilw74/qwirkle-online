@@ -537,17 +537,17 @@ export const translations = {
     pl: 'Usunięto: {history} z historii, {sessions} sesji.',
     en: 'Deleted: {history} from history, {sessions} sessions.',
   },
-  adminActiveGames: {
-    pl: 'Aktywne gry — edycja nicków',
-    en: 'Active Games — Edit Nicknames',
+  adminPlayers: {
+    pl: 'Gracze',
+    en: 'Players',
   },
-  adminActiveGamesDesc: {
-    pl: 'Zmień nick dowolnego gracza w aktywnej grze. Zmiana aktualizuje również profil i ranking.',
-    en: 'Change any player\'s nickname in an active game. Also updates profile and leaderboard.',
+  adminPlayersDesc: {
+    pl: 'Lista zarejestrowanych graczy. Edytuj nick lub zbanuj/odbanuj.',
+    en: 'Registered players. Edit nickname or ban/unban.',
   },
-  adminNoActiveGames: {
-    pl: 'Brak aktywnych gier.',
-    en: 'No active games.',
+  adminNoPlayers: {
+    pl: 'Brak zarejestrowanych graczy.',
+    en: 'No registered players.',
   },
   adminEditNick: {
     pl: 'Edytuj nick',
@@ -556,10 +556,6 @@ export const translations = {
   adminEditNickTitle: {
     pl: 'Zmień nick gracza',
     en: 'Change Player Nickname',
-  },
-  adminEditNickRoom: {
-    pl: 'Pokój',
-    en: 'Room',
   },
   adminNickUpdated: {
     pl: 'Nick zaktualizowany.',
@@ -584,6 +580,38 @@ export const translations = {
   adminConfirmBtn: {
     pl: 'Tak, usuń',
     en: 'Yes, delete',
+  },
+  adminBan: {
+    pl: 'Zbanuj',
+    en: 'Ban',
+  },
+  adminUnban: {
+    pl: 'Odbanuj',
+    en: 'Unban',
+  },
+  adminBanConfirmTitle: {
+    pl: 'Zbanować gracza?',
+    en: 'Ban player?',
+  },
+  adminBanConfirmDesc: {
+    pl: 'Gracz {nick} zostanie zbanowany. Jego gry zostaną usunięte, a logowanie zablokowane. Można później odbanować.',
+    en: 'Player {nick} will be banned. Their games will be deleted and login blocked. Can be unbanned later.',
+  },
+  adminBanBtn: {
+    pl: 'Zbanuj',
+    en: 'Ban',
+  },
+  adminBanSuccess: {
+    pl: 'Gracz {nick} został zbanowany.',
+    en: 'Player {nick} has been banned.',
+  },
+  adminUnbanSuccess: {
+    pl: 'Gracz {nick} został odbanowany.',
+    en: 'Player {nick} has been unbanned.',
+  },
+  authBanned: {
+    pl: 'Twoje konto zostało zablokowane. Nie masz autoryzacji do grania.',
+    en: 'Your account has been blocked. You are not authorized to play.',
   },
 } as const;
 
