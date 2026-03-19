@@ -197,13 +197,21 @@ export function Lobby({ onNavigate }: LobbyProps) {
     const refreshInterval = setInterval(() => {
       if (loadingRef.current) return;
       const { active } = gamesRef.current;
-      // Refresh needed when any active game is not purely waiting on me:
+      // Refresh needed when any active game needs background processing:
       // - phase 'waiting' (someone might join)
-      // - it's not my turn (bot or opponent could act, or timer could expire)
+      // - it's not my turn (bot or opponent could act)
+      // - timer expired (needs catchUpExpiredTurns even if it's "my turn")
+      const now = Date.now();
       const needsRefresh = active.length === 0 || active.some(({ session, gameState }) => {
         if (gameState.phase === 'waiting') return true;
         const currentPlayer = gameState.players[gameState.currentPlayerIndex];
-        return currentPlayer?.id !== session.playerId;
+        if (currentPlayer?.id !== session.playerId) return true;
+        // Even if it's my turn, refresh if my timer has expired (auto-pass needed)
+        if (gameState.turnTimeLimitMs && gameState.turnStartedAt) {
+          const deadline = gameState.turnStartedAt + gameState.turnTimeLimitMs;
+          if (now >= deadline) return true;
+        }
+        return false;
       });
       if (needsRefresh) loadGames();
     }, 10_000);
