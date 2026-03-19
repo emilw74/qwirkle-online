@@ -69,17 +69,37 @@ export async function catchUpExpiredTurns(roomCode: string, state: GameState): P
     safetyLimit--;
   }
 
-  // If we made changes, ensure turnStartedAt is correct for the final active turn
-  if (current !== state && current.phase === 'playing' && current.turnStartedAt) {
-    // If the last simulated turnStartedAt is still in the past and still has time,
-    // keep it (the countdown will show the correct remaining time).
-    // If it's way in the past but within limit, that's fine — player sees real remaining time.
-  }
-
   // Save final state to Firebase
   if (current !== state) {
     console.log('[catchUp] Replayed expired turns for room:', roomCode,
       '| phase:', current.phase, '| currentPlayer:', current.players[current.currentPlayerIndex]?.nickname);
+    await set(ref(db, `rooms/${roomCode}`), stripUndefined(current));
+  }
+
+  return current;
+}
+
+// Execute all pending AI turns for a game (bots play immediately, no waiting)
+export async function executePendingAITurns(roomCode: string, state: GameState): Promise<GameState> {
+  if (state.phase !== 'playing') return state;
+
+  let current = state;
+  let safety = state.players.filter(p => p.isAI).length + 1;
+
+  while (current.phase === 'playing' && safety > 0) {
+    const cp = current.players[current.currentPlayerIndex];
+    if (!cp?.isAI) break;
+    try {
+      await set(ref(db, `rooms/${roomCode}`), stripUndefined(current));
+      current = await executeAITurn(roomCode);
+    } catch (e) {
+      console.error('[pendingAI] error:', e);
+      break;
+    }
+    safety--;
+  }
+
+  if (current !== state) {
     await set(ref(db, `rooms/${roomCode}`), stripUndefined(current));
   }
 
@@ -524,8 +544,10 @@ export async function getGamesForPlayer(
     if (snapshot.exists()) {
       let state = sanitizeGameState(snapshot.val() as GameState);
 
-      // Catch up any expired turns (auto-pass chain + AI moves)
+      // Catch up any expired turns (auto-pass chain)
       state = await catchUpExpiredTurns(session.roomCode, state);
+      // Execute any pending AI turns (bots play immediately)
+      state = await executePendingAITurns(session.roomCode, state);
 
       if (state.phase === 'finished') {
         await markSessionFinished(uid, session.roomCode, state);

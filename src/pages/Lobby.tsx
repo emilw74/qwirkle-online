@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useGameStore } from '../hooks/useGameStore';
 import {
   createRoom, joinRoom, addAIToRoom, startGameInRoom, subscribeToRoom,
@@ -142,11 +142,13 @@ function FinishedGameDetail({ session, onClose }: { session: PlayerSession; onCl
 
 function formatTimeShort(ms: number): string {
   if (ms <= 0) return '0:00';
-  const totalMin = Math.floor(ms / 60000);
-  const h = Math.floor(totalMin / 60);
-  const m = totalMin % 60;
+  const totalSec = Math.floor(ms / 1000);
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
   if (h > 0) return `${h}h ${m > 0 ? m + 'min' : ''}`;
-  return `${m}min`;
+  if (m > 0) return `${m}:${s.toString().padStart(2, '0')}`;
+  return `0:${s.toString().padStart(2, '0')}`;
 }
 
 function formatTimeLimitDisplay(ms: number): string {
@@ -181,13 +183,23 @@ export function Lobby({ onNavigate }: LobbyProps) {
   const [deleteConfirm, setDeleteConfirm] = useState<{ roomCode: string; gameName: string; hasBots: boolean } | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  // Tick for active games timer display
+  // Auto-refresh games list every 10 seconds (also triggers AI turns in background)
   const [tick, setTick] = useState(0);
+  const loadingRef = useRef(false);
+  loadingRef.current = loadingGames;
   useEffect(() => {
-    if (mode !== 'mygames' || playerGames.active.length === 0) return;
-    const interval = setInterval(() => setTick(t => t + 1), 60_000); // update every minute
-    return () => clearInterval(interval);
-  }, [mode, playerGames.active.length]);
+    if (mode !== 'mygames') return;
+    // Tick every second for countdown timers
+    const tickInterval = setInterval(() => setTick(t => t + 1), 1_000);
+    // Full reload every 10 seconds (fetches game state, executes pending AI turns)
+    const refreshInterval = setInterval(() => {
+      if (!loadingRef.current) loadGames();
+    }, 10_000);
+    return () => {
+      clearInterval(tickInterval);
+      clearInterval(refreshInterval);
+    };
+  }, [mode]);
 
   const currentNick = nickname || t('defaultPlayer');
   const currentUid = uid || '';
