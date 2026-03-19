@@ -40,16 +40,15 @@ export async function catchUpExpiredTurns(roomCode: string, state: GameState): P
     if (!currentPlayer) break;
 
     if (currentPlayer.isAI) {
-      // AI players don't time out — they play instantly during catch-up.
-      // Execute a real AI turn.
+      // AI plays instantly — does NOT consume any clock time.
+      // Keep turnStartedAt unchanged so the next human turn starts at the same deadline.
+      const preservedStart = current.turnStartedAt;
       try {
-        // Save current state to Firebase so AI turn can read it
         await set(ref(db, `rooms/${roomCode}`), stripUndefined(current));
         current = await executeAITurn(roomCode);
-        // Override turnStartedAt to the deadline so catch-up chain continues
-        // (executeAITurn sets turnStartedAt = Date.now(), which would break the loop)
+        // Restore turnStartedAt — AI turn is instantaneous, no time passes
         if (current.phase === 'playing') {
-          current.turnStartedAt = deadline;
+          current.turnStartedAt = preservedStart;
         }
       } catch (e) {
         console.error('[catchUp] AI turn error:', e);
@@ -58,7 +57,7 @@ export async function catchUpExpiredTurns(roomCode: string, state: GameState): P
     } else {
       // Human player timed out — execute a pass.
       const passState = passTurn(current, currentPlayer.id);
-      // Override turnStartedAt to the deadline (not Date.now()) so the chain continues correctly
+      // Advance turnStartedAt to deadline (when this turn expired)
       if (passState.phase === 'playing') {
         passState.turnStartedAt = deadline;
       }
