@@ -577,7 +577,7 @@ export function Lobby({ onNavigate }: LobbyProps) {
                                     {isMyTurn ? t('yourTurn') : t('waitTurn')}
                                   </span>
                                 )}
-                                {gameState.phase === 'waiting' && (
+                                {gameState.phase === 'waiting' && gameState.players.length < gameState.maxPlayers && (
                                   <span className="text-xs font-mono font-bold tracking-wider text-primary">{session.roomCode}</span>
                                 )}
                                 {gameState.phase === 'playing' && currentTurnPlayer && (
