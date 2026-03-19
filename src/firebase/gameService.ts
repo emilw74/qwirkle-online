@@ -24,7 +24,8 @@ export async function catchUpExpiredTurns(roomCode: string, state: GameState): P
 
   const now = Date.now();
   let current = state;
-  let safetyLimit = state.players.length * 3; // prevent infinite loops
+  // Allow enough iterations: up to 120 catch-up cycles (e.g. 60 min / 30s timer = 120)
+  let safetyLimit = 120;
 
   while (
     current.phase === 'playing' &&
@@ -35,25 +36,30 @@ export async function catchUpExpiredTurns(roomCode: string, state: GameState): P
     const elapsed = now - current.turnStartedAt;
     if (elapsed <= current.turnTimeLimitMs) break; // current turn still has time
 
+    // Deadline = when this turn should have ended
+    const deadline = current.turnStartedAt + current.turnTimeLimitMs;
+
     const currentPlayer = current.players[current.currentPlayerIndex];
     if (!currentPlayer) break;
 
     if (currentPlayer.isAI) {
-      // AI players don't time out — they play instantly.
+      // AI players don't time out — they play instantly during catch-up.
       // Execute a real AI turn.
       try {
         // Save current state to Firebase so AI turn can read it
         await set(ref(db, `rooms/${roomCode}`), stripUndefined(current));
         current = await executeAITurn(roomCode);
+        // Override turnStartedAt to the deadline so catch-up chain continues
+        // (executeAITurn sets turnStartedAt = Date.now(), which would break the loop)
+        if (current.phase === 'playing') {
+          current.turnStartedAt = deadline;
+        }
       } catch (e) {
         console.error('[catchUp] AI turn error:', e);
         break;
       }
     } else {
       // Human player timed out — execute a pass.
-      // Set turnStartedAt to when the NEXT turn should have started
-      // (previous deadline = turnStartedAt + turnTimeLimitMs)
-      const deadline = current.turnStartedAt + current.turnTimeLimitMs;
       const passState = passTurn(current, currentPlayer.id);
       // Override turnStartedAt to the deadline (not Date.now()) so the chain continues correctly
       if (passState.phase === 'playing') {
@@ -67,6 +73,11 @@ export async function catchUpExpiredTurns(roomCode: string, state: GameState): P
     }
 
     safetyLimit--;
+  }
+
+  // After catching up, set turnStartedAt to real time so the next turn timer works normally
+  if (current !== state && current.phase === 'playing') {
+    current.turnStartedAt = Date.now();
   }
 
   // Save final state to Firebase
