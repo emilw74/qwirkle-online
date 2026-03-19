@@ -940,7 +940,6 @@ export function Lobby({ onNavigate }: LobbyProps) {
                           type="number"
                           min={0}
                           max={59}
-                          step={5}
                           value={turnTimeMinutes}
                           onChange={e => setTurnTimeMinutes(Math.min(59, Math.max(0, parseInt(e.target.value) || 0)))}
                           className="w-16 px-2 py-2 rounded-lg border border-input bg-background text-foreground text-sm text-center"
@@ -951,6 +950,7 @@ export function Lobby({ onNavigate }: LobbyProps) {
                   </div>
                   <div className="flex gap-1.5 mt-1.5 flex-wrap">
                     {[
+                      { h: 0, m: 2, label: '2min' },
                       { h: 0, m: 5, label: '5min' },
                       { h: 0, m: 15, label: '15min' },
                       { h: 1, m: 0, label: '1h' },
