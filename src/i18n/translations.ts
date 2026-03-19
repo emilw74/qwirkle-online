@@ -451,6 +451,10 @@ export const translations = {
     pl: 'Czas na ruch',
     en: 'Time per move',
   },
+  turnTimeDefault: {
+    pl: 'Puste = 24h',
+    en: 'Empty = 24h',
+  },
   hours: {
     pl: 'godz.',
     en: 'hours',

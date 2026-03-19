@@ -182,8 +182,8 @@ export function Lobby({ onNavigate }: LobbyProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [roomInfo, setRoomInfo] = useState<{ code: string; players: string[] } | null>(null);
   const [maxPlayers, setMaxPlayers] = useState(2);
-  const [turnTimeHours, setTurnTimeHours] = useState(24);
-  const [turnTimeMinutes, setTurnTimeMinutes] = useState(0);
+  const [turnTimeHours, setTurnTimeHours] = useState<number | ''>('');
+  const [turnTimeMinutes, setTurnTimeMinutes] = useState<number | ''>('');
   const [copied, setCopied] = useState(false);
   const [unsubscribe, setUnsubscribe] = useState<(() => void) | null>(null);
 
@@ -254,7 +254,9 @@ export function Lobby({ onNavigate }: LobbyProps) {
     setIsLoading(true);
     setError('');
     try {
-      const turnTimeLimitMs = (turnTimeHours * 60 + turnTimeMinutes) * 60 * 1000;
+      const h = turnTimeHours === '' ? 0 : turnTimeHours;
+      const m = turnTimeMinutes === '' ? 0 : turnTimeMinutes;
+      const turnTimeLimitMs = (h === 0 && m === 0) ? 24 * 60 * 60 * 1000 : (h * 60 + m) * 60 * 1000;
       const { roomCode, playerId, gameState } = await createRoom(currentNick, maxPlayers, currentUid, turnTimeLimitMs);
       setPlayerId(playerId);
       setRoomCode(roomCode);
@@ -923,7 +925,9 @@ export function Lobby({ onNavigate }: LobbyProps) {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-1.5">{t('turnTimeLimit')}</label>
+                  <label className="block text-sm font-medium mb-1.5">
+                    {t('turnTimeLimit')} <span className="text-xs text-muted-foreground font-normal">({t('turnTimeDefault')})</span>
+                  </label>
                   <div className="flex items-center gap-2">
                     <div className="flex-1">
                       <div className="flex items-center gap-1.5">
@@ -932,7 +936,12 @@ export function Lobby({ onNavigate }: LobbyProps) {
                           min={0}
                           max={48}
                           value={turnTimeHours}
-                          onChange={e => setTurnTimeHours(Math.min(48, Math.max(0, parseInt(e.target.value) || 0)))}
+                          placeholder="0"
+                          onChange={e => {
+                            const v = e.target.value;
+                            if (v === '') { setTurnTimeHours(''); return; }
+                            setTurnTimeHours(Math.min(48, Math.max(0, parseInt(v) || 0)));
+                          }}
                           className="w-16 px-2 py-2 rounded-lg border border-input bg-background text-foreground text-sm text-center"
                         />
                         <span className="text-sm text-muted-foreground">{t('hours')}</span>
@@ -941,7 +950,12 @@ export function Lobby({ onNavigate }: LobbyProps) {
                           min={0}
                           max={59}
                           value={turnTimeMinutes}
-                          onChange={e => setTurnTimeMinutes(Math.min(59, Math.max(0, parseInt(e.target.value) || 0)))}
+                          placeholder="0"
+                          onChange={e => {
+                            const v = e.target.value;
+                            if (v === '') { setTurnTimeMinutes(''); return; }
+                            setTurnTimeMinutes(Math.min(59, Math.max(0, parseInt(v) || 0)));
+                          }}
                           className="w-16 px-2 py-2 rounded-lg border border-input bg-background text-foreground text-sm text-center"
                         />
                         <span className="text-sm text-muted-foreground">{t('minutes')}</span>
