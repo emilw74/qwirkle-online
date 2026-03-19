@@ -471,6 +471,10 @@ export const translations = {
     pl: 'Po upływie czasu nastąpi automatyczny pas.',
     en: 'Auto-pass when time runs out.',
   },
+  autoPassCount: {
+    pl: 'Auto-pasów:',
+    en: 'Auto-passes:',
+  },
 } as const;
 
 export type TranslationKey = keyof typeof translations;

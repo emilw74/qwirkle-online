@@ -538,6 +538,7 @@ export function applyMove(state: GameState, placedTiles: PlacedTile[], playerId:
       moves: [...state.moves, move],
       consecutivePasses: 0,
       winner,
+      autoPassCounts: resetAutoPass(state.autoPassCounts, playerId),
     };
   }
   
@@ -554,6 +555,7 @@ export function applyMove(state: GameState, placedTiles: PlacedTile[], playerId:
     consecutivePasses: 0,
     winner,
     turnStartedAt: Date.now(),
+    autoPassCounts: resetAutoPass(state.autoPassCounts, playerId),
   };
 }
 
@@ -605,6 +607,7 @@ export function swapTiles(state: GameState, tilesToSwap: Tile[], playerId: strin
     moves: [...state.moves, move],
     consecutivePasses: state.consecutivePasses + 1,
     turnStartedAt: Date.now(),
+    autoPassCounts: resetAutoPass(state.autoPassCounts, playerId),
   };
 }
 
@@ -634,7 +637,16 @@ export function passTurn(state: GameState, playerId: string): GameState {
     consecutivePasses: newConsecutivePasses,
     winner,
     turnStartedAt: phase === 'finished' ? state.turnStartedAt : Date.now(),
+    autoPassCounts: resetAutoPass(state.autoPassCounts, playerId),
   };
+}
+
+// Reset auto-pass counter for a player who made a real move
+function resetAutoPass(counts: Record<string, number> | undefined, playerId: string): Record<string, number> {
+  if (!counts || !counts[playerId]) return counts || {};
+  const next = { ...counts };
+  delete next[playerId];
+  return next;
 }
 
 export function generateRoomCode(): string {

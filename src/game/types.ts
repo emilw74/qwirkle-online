@@ -63,6 +63,8 @@ export interface GameState {
   // Turn timer
   turnTimeLimitMs?: number; // max time per turn in milliseconds (default: 24h)
   turnStartedAt?: number;  // timestamp when current turn started
+  // Auto-pass tracking: playerId → count of consecutive auto-passes since last real move
+  autoPassCounts?: Record<string, number>;
 }
 
 export interface LeaderboardEntry {

@@ -71,6 +71,15 @@ const rulesContent: Record<Lang, {
           'Wygrywa gracz z najwyższym wynikiem.',
         ],
       },
+      {
+        heading: 'Timer — czas na ruch',
+        content: [
+          'Przy tworzeniu pokoju można ustawić limit czasu na ruch (domyślnie 24 godziny).',
+          'Jeśli gracz nie wykona ruchu w wyznaczonym czasie, następuje automatyczny pas.',
+          'Boty nie są ograniczone timerem — wykonują ruch natychmiast.',
+          'Jeśli nikt nie ma otwartej gry przez dłuższy czas, system automatycznie nadrabia wszystkie przeterminowane tury po otwarciu gry.',
+        ],
+      },
     ],
   },
   en: {
@@ -131,6 +140,15 @@ const rulesContent: Record<Lang, {
         content: [
           'The game ends when: a player places their last tile, or all players pass consecutively.',
           'The player with the highest score wins.',
+        ],
+      },
+      {
+        heading: 'Timer — Time per Move',
+        content: [
+          'When creating a room, you can set a time limit per move (default: 24 hours).',
+          'If a player doesn\u2019t make a move within the time limit, an automatic pass is triggered.',
+          'Bots are not restricted by the timer — they play instantly.',
+          'If nobody has the game open for an extended period, the system automatically catches up all expired turns when the game is opened.',
         ],
       },
     ],

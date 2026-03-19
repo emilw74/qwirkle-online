@@ -59,6 +59,10 @@ export async function catchUpExpiredTurns(roomCode: string, state: GameState): P
       if (passState.phase === 'playing') {
         passState.turnStartedAt = deadline;
       }
+      // Track auto-pass count for this player
+      const counts = { ...(passState.autoPassCounts || {}) };
+      counts[currentPlayer.id] = (counts[currentPlayer.id] || 0) + 1;
+      passState.autoPassCounts = counts;
       current = passState;
     }
 

@@ -476,6 +476,7 @@ export function Lobby({ onNavigate }: LobbyProps) {
                     const remainingMs = (gameState.turnTimeLimitMs && gameState.turnStartedAt)
                       ? Math.max(0, gameState.turnTimeLimitMs - (Date.now() - gameState.turnStartedAt))
                       : null;
+                    const myAutoPassCount = gameState.autoPassCounts?.[session.playerId] || 0;
                     // Use tick to force re-render
                     void tick;
                     return (
@@ -523,6 +524,11 @@ export function Lobby({ onNavigate }: LobbyProps) {
                                   )}>
                                     <Clock size={10} />
                                     {formatTimeShort(remainingMs)}
+                                  </span>
+                                )}
+                                {gameState.phase === 'playing' && myAutoPassCount > 0 && (
+                                  <span className="text-xs text-orange-600 dark:text-orange-400">
+                                    {t('autoPassCount')} {myAutoPassCount}
                                   </span>
                                 )}
                               </div>
