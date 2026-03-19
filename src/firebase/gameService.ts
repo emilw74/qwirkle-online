@@ -410,13 +410,7 @@ export interface PlayerSession {
 }
 
 function generateGameName(players: { nickname: string; isAI?: boolean; aiLevel?: string }[]): string {
-  const names = players.map(p => {
-    if (p.isAI) {
-      const levelMap: Record<string, string> = { easy: 'Łatwy', medium: 'Średni', hard: 'Trudny' };
-      return `Bot ${levelMap[p.aiLevel || 'medium'] || 'Średni'}`;
-    }
-    return p.nickname;
-  });
+  const names = players.map(p => p.nickname);
   if (names.length === 2) return `${names[0]} vs ${names[1]}`;
   return names.join(', ');
 }

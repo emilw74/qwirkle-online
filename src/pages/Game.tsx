@@ -35,7 +35,6 @@ export function Game({ onNavigate }: GameProps) {
   const [swapSelection, setSwapSelection] = useState<Set<string>>(new Set());
   const [showLastMove, setShowLastMove] = useState(false);
   const aiTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const aiProcessingRef = useRef(false);
 
   // Subscribe to room
   useEffect(() => {
@@ -48,29 +47,36 @@ export function Game({ onNavigate }: GameProps) {
     return () => unsub();
   }, [roomCode]);
 
-  // Handle AI turns
+  // Handle AI turns — chain consecutive bot turns reliably
+  // Track which moves-length we've already triggered an AI turn for,
+  // so each distinct game state only triggers one AI call.
+  const aiTriggeredForMoveRef = useRef<number>(-1);
   useEffect(() => {
     if (!gameState || !roomCode || gameState.phase !== 'playing') return;
 
     const currentPlayer = gameState.players[gameState.currentPlayerIndex];
-    if (!currentPlayer?.isAI || aiProcessingRef.current) return;
+    if (!currentPlayer?.isAI) return;
 
-    aiProcessingRef.current = true;
+    // Use moves count as a unique fingerprint for this game state.
+    // Each AI turn adds a move, so moves.length changes between consecutive AI turns.
+    const movesCount = gameState.moves?.length ?? 0;
+    if (aiTriggeredForMoveRef.current === movesCount) return;
+    aiTriggeredForMoveRef.current = movesCount;
 
     // Add a delay to make AI feel more natural
+    const delay = 800 + Math.random() * 1200;
     aiTimeoutRef.current = setTimeout(async () => {
       try {
         await executeAITurn(roomCode);
       } catch (e: any) {
         console.error('AI error:', e);
       }
-      aiProcessingRef.current = false;
-    }, 800 + Math.random() * 1200);
+    }, delay);
 
     return () => {
       if (aiTimeoutRef.current) clearTimeout(aiTimeoutRef.current);
     };
-  }, [gameState?.currentPlayerIndex, gameState?.phase, roomCode]);
+  }, [gameState?.currentPlayerIndex, gameState?.phase, gameState?.moves?.length, roomCode]);
 
   // Auto-pass when turn timer expires (handles multi-pass catch-up too)
   const catchUpRef = useRef(false);
