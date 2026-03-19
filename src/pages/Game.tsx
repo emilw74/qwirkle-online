@@ -150,7 +150,7 @@ export function Game({ onNavigate }: GameProps) {
   }
 
   const myPlayer = gameState.players.find(p => p.id === playerId);
-  const isMyTurn = gameState.players[gameState.currentPlayerIndex]?.id === playerId;
+  const isMyTurn = gameState.phase === 'playing' && gameState.players[gameState.currentPlayerIndex]?.id === playerId;
   const myHand = myPlayer?.hand || [];
   const board = gameState.board || {};
   const placedIds = new Set(placedTilesThisTurn.map(t => t.id));

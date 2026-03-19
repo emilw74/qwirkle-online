@@ -194,6 +194,9 @@ export async function startGameInRoom(roomCode: string): Promise<GameState> {
   if (!snapshot.exists()) throw new Error('Pokój nie istnieje');
 
   const gameState = snapshot.val() as GameState;
+  if (gameState.players.length < gameState.maxPlayers) {
+    throw new Error(`Czekamy na graczy (${gameState.players.length}/${gameState.maxPlayers})`);
+  }
   const updatedState = startGame(gameState);
 
   await set(ref(db, `rooms/${roomCode}`), stripUndefined(updatedState));
