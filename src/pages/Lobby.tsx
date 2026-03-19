@@ -17,9 +17,12 @@ import { posKey, parseKey } from '../game/engine';
 import { useTranslation } from '../i18n/LanguageContext';
 import { LanguageToggle } from '../components/LanguageToggle';
 
+export type LobbyMode = 'menu' | 'create' | 'join' | 'waiting' | 'mygames';
+
 interface LobbyProps {
   onNavigate: (page: 'game' | 'leaderboard' | 'rules' | 'about') => void;
   initialMode?: 'menu' | 'mygames';
+  onModeChange?: (mode: LobbyMode) => void;
 }
 
 // --- Mini Board for finished game detail ---
@@ -174,10 +177,16 @@ function formatDuration(ms: number): string {
   return parts.join(' ') || '<1min';
 }
 
-export function Lobby({ onNavigate, initialMode = 'menu' }: LobbyProps) {
+export function Lobby({ onNavigate, initialMode = 'menu', onModeChange }: LobbyProps) {
   const { t, lang } = useTranslation();
   const { uid, nickname, setPlayerId, setRoomCode, setGameState } = useGameStore();
-  const [mode, setMode] = useState<'menu' | 'create' | 'join' | 'waiting' | 'mygames'>(initialMode);
+  const [mode, setModeRaw] = useState<LobbyMode>(initialMode);
+  const setMode = (m: LobbyMode) => {
+    setModeRaw(m);
+    onModeChange?.(m);
+  };
+  // Notify parent of initial mode on mount
+  useEffect(() => { onModeChange?.(initialMode); }, []);
   const [joinCode, setJoinCode] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -205,6 +214,8 @@ export function Lobby({ onNavigate, initialMode = 'menu' }: LobbyProps) {
   gamesRef.current = playerGames;
   useEffect(() => {
     if (mode !== 'mygames') return;
+    // Immediately load games when entering mygames view
+    loadGames();
     // Tick every second for countdown timers
     const tickInterval = setInterval(() => setTick(t => t + 1), 1_000);
     // Full reload every 10 seconds, but only if needed

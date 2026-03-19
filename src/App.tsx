@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Lobby } from './pages/Lobby';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { Lobby, LobbyMode } from './pages/Lobby';
 import { Game } from './pages/Game';
 import { Leaderboard } from './pages/Leaderboard';
 import { Rules } from './pages/Rules';
@@ -38,12 +38,83 @@ function AppContent({ profile }: { profile: UserProfile }) {
   }, []);
 
   const [lobbyInitialMode, setLobbyInitialMode] = useState<'menu' | 'mygames'>('menu');
+  const [lobbyKey, setLobbyKey] = useState(0);
+
+  // Track lobby mode for back-button logic & push history on forward nav
+  const lobbyModeRef = useRef<LobbyMode>('menu');
+  const isPopstateNav = useRef(false); // true when navigation was triggered by popstate
+  const handleLobbyModeChange = useCallback((m: LobbyMode) => {
+    const prev = lobbyModeRef.current;
+    lobbyModeRef.current = m;
+    // Push history when going deeper (menu → anything else), but not on popstate-driven nav
+    if (!isPopstateNav.current && prev === 'menu' && m !== 'menu') {
+      history.pushState({ page: 'lobby', lobbyMode: m }, '');
+    }
+  }, []);
 
   const handleNavigateHome = () => {
     leaveGame();
     setLobbyInitialMode('mygames');
+    setLobbyKey(k => k + 1);
     setPage('lobby');
+    // Replace current entry (game) with mygames so back still works correctly
+    history.replaceState({ page: 'lobby', lobbyMode: 'mygames' }, '');
   };
+
+  // --- Android Back button (history-based) ---
+  // On mount, replace current state with lobby/menu baseline
+  useEffect(() => {
+    history.replaceState({ page: 'lobby', lobbyMode: 'menu' }, '');
+  }, []);
+
+  // Listen for popstate (Android back / browser back)
+  const pageRef = useRef(page);
+  pageRef.current = page;
+
+  useEffect(() => {
+    const onPopState = (_e: PopStateEvent) => {
+      const currentPage = pageRef.current;
+      const currentLobbyMode = lobbyModeRef.current;
+
+      isPopstateNav.current = true;
+
+      // Game → lobby/mygames (refreshed)
+      if (currentPage === 'game') {
+        leaveGame();
+        setLobbyInitialMode('mygames');
+        setLobbyKey(k => k + 1);
+        setPage('lobby');
+        // Stack already has [menu, mygames] — no push needed
+        setTimeout(() => { isPopstateNav.current = false; }, 50);
+        return;
+      }
+
+      // Leaderboard, rules, about → lobby/menu
+      if (currentPage !== 'lobby') {
+        setLobbyInitialMode('menu');
+        setLobbyKey(k => k + 1);
+        setPage('lobby');
+        // Stack is now at baseline [menu] — no push needed
+        setTimeout(() => { isPopstateNav.current = false; }, 50);
+        return;
+      }
+
+      // Lobby but not menu → menu (remount lobby)
+      if (currentLobbyMode !== 'menu') {
+        setLobbyInitialMode('menu');
+        setLobbyKey(k => k + 1);
+        // Stack is now at baseline [menu] — no push needed
+        setTimeout(() => { isPopstateNav.current = false; }, 50);
+        return;
+      }
+
+      // Lobby/menu → let the browser close the tab/go back naturally
+      isPopstateNav.current = false;
+    };
+
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
 
   const handleSignOut = async () => {
     await signOut();
@@ -89,7 +160,16 @@ function AppContent({ profile }: { profile: UserProfile }) {
           isGame ? 'h-10' : 'h-14 px-4',
         )}>
           <button
-            onClick={handleNavigateHome}
+            onClick={() => {
+              if (isGame) {
+                handleNavigateHome();
+              } else {
+                // On non-game pages: go to lobby/menu
+                setLobbyInitialMode('menu');
+                setLobbyKey(k => k + 1);
+                setPage('lobby');
+              }
+            }}
             className="flex items-center gap-2 hover:opacity-80 transition-opacity"
           >
             <div className="flex items-center gap-0.5">
@@ -214,7 +294,16 @@ function AppContent({ profile }: { profile: UserProfile }) {
       ) : (
         <main className="max-w-4xl mx-auto px-4 py-6">
           {page === 'lobby' && (
-            <Lobby onNavigate={(p) => { setLobbyInitialMode('menu'); setPage(p); }} initialMode={lobbyInitialMode} />
+            <Lobby
+              key={lobbyKey}
+              onNavigate={(p) => {
+                setLobbyInitialMode('menu');
+                history.pushState({ page: p }, '');
+                setPage(p);
+              }}
+              initialMode={lobbyInitialMode}
+              onModeChange={handleLobbyModeChange}
+            />
           )}
           {page === 'leaderboard' && (
             <Leaderboard onBack={() => setPage('lobby')} />
