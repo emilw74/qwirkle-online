@@ -12,6 +12,76 @@ import {
 } from '../game/engine';
 import { getAIMove, shouldAISwap } from '../game/ai';
 
+// --- Catch up expired turns ---
+// When nobody has the game open, turns expire silently.
+// This function replays all missed auto-passes (and AI moves) retroactively.
+// Called whenever any client loads a game state that has expired turns.
+
+export async function catchUpExpiredTurns(roomCode: string, state: GameState): Promise<GameState> {
+  if (state.phase !== 'playing' || !state.turnTimeLimitMs || !state.turnStartedAt) {
+    return state;
+  }
+
+  const now = Date.now();
+  let current = state;
+  let safetyLimit = state.players.length * 3; // prevent infinite loops
+
+  while (
+    current.phase === 'playing' &&
+    current.turnTimeLimitMs &&
+    current.turnStartedAt &&
+    safetyLimit > 0
+  ) {
+    const elapsed = now - current.turnStartedAt;
+    if (elapsed <= current.turnTimeLimitMs) break; // current turn still has time
+
+    const currentPlayer = current.players[current.currentPlayerIndex];
+    if (!currentPlayer) break;
+
+    if (currentPlayer.isAI) {
+      // AI players don't time out — they play instantly.
+      // Execute a real AI turn.
+      try {
+        // Save current state to Firebase so AI turn can read it
+        await set(ref(db, `rooms/${roomCode}`), stripUndefined(current));
+        current = await executeAITurn(roomCode);
+      } catch (e) {
+        console.error('[catchUp] AI turn error:', e);
+        break;
+      }
+    } else {
+      // Human player timed out — execute a pass.
+      // Set turnStartedAt to when the NEXT turn should have started
+      // (previous deadline = turnStartedAt + turnTimeLimitMs)
+      const deadline = current.turnStartedAt + current.turnTimeLimitMs;
+      const passState = passTurn(current, currentPlayer.id);
+      // Override turnStartedAt to the deadline (not Date.now()) so the chain continues correctly
+      if (passState.phase === 'playing') {
+        passState.turnStartedAt = deadline;
+      }
+      current = passState;
+    }
+
+    safetyLimit--;
+  }
+
+  // If we made changes, ensure turnStartedAt is correct for the final active turn
+  if (current !== state && current.phase === 'playing' && current.turnStartedAt) {
+    // If the last simulated turnStartedAt is still in the past and still has time,
+    // keep it (the countdown will show the correct remaining time).
+    // If it's way in the past but within limit, that's fine — player sees real remaining time.
+  }
+
+  // Save final state to Firebase
+  if (current !== state) {
+    console.log('[catchUp] Replayed expired turns for room:', roomCode,
+      '| phase:', current.phase, '| currentPlayer:', current.players[current.currentPlayerIndex]?.nickname);
+    await set(ref(db, `rooms/${roomCode}`), stripUndefined(current));
+  }
+
+  return current;
+}
+
 // --- Firebase Data Sanitization ---
 function sanitizeGameState(state: GameState): GameState {
   return {
@@ -450,31 +520,8 @@ export async function getGamesForPlayer(
     if (snapshot.exists()) {
       let state = sanitizeGameState(snapshot.val() as GameState);
 
-      // Auto-pass expired turns (handles the case when user views Lobby instead of Game)
-      if (state.phase === 'playing' && state.turnTimeLimitMs && state.turnStartedAt) {
-        const elapsed = now - state.turnStartedAt;
-        if (elapsed > state.turnTimeLimitMs) {
-          const currentPlayer = state.players[state.currentPlayerIndex];
-          if (currentPlayer) {
-            try {
-              console.log('[getGamesForPlayer] Auto-passing expired turn for', currentPlayer.nickname, 'in room', session.roomCode);
-              state = await passPlayerTurn(session.roomCode, currentPlayer.id);
-              // If it's now an AI's turn, run the AI
-              let aiLoopCount = 0;
-              while (
-                state.phase === 'playing' &&
-                state.players[state.currentPlayerIndex]?.isAI &&
-                aiLoopCount < 10
-              ) {
-                state = await executeAITurn(session.roomCode);
-                aiLoopCount++;
-              }
-            } catch (e) {
-              console.error('[getGamesForPlayer] auto-pass error:', e);
-            }
-          }
-        }
-      }
+      // Catch up any expired turns (auto-pass chain + AI moves)
+      state = await catchUpExpiredTurns(session.roomCode, state);
 
       if (state.phase === 'finished') {
         await markSessionFinished(uid, session.roomCode, state);

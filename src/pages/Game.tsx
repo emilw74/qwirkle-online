@@ -7,7 +7,7 @@ import { GameActions } from '../components/GameActions';
 import { TileView } from '../components/TileView';
 import {
   placeTiles, swapPlayerTiles, passPlayerTurn, executeAITurn,
-  subscribeToRoom, ensureGameFinalized
+  subscribeToRoom, ensureGameFinalized, catchUpExpiredTurns
 } from '../firebase/gameService';
 import { Tile, PlacedTile, Position, GameState } from '../game/types';
 import { validateMove, boardFromRecord } from '../game/engine';
@@ -72,40 +72,36 @@ export function Game({ onNavigate }: GameProps) {
     };
   }, [gameState?.currentPlayerIndex, gameState?.phase, roomCode]);
 
-  // Auto-pass when turn timer expires
-  const autoPassRef = useRef(false);
+  // Auto-pass when turn timer expires (handles multi-pass catch-up too)
+  const catchUpRef = useRef(false);
   useEffect(() => {
-    if (!gameState || !roomCode || !playerId || gameState.phase !== 'playing') return;
+    if (!gameState || !roomCode || gameState.phase !== 'playing') return;
     if (!gameState.turnTimeLimitMs || !gameState.turnStartedAt) return;
-
-    const currentPlayer = gameState.players[gameState.currentPlayerIndex];
-    if (!currentPlayer || currentPlayer.isAI) return; // AI turns are handled by AI logic
-    if (currentPlayer.id !== playerId) return; // Only auto-pass for current client
 
     const elapsed = Date.now() - gameState.turnStartedAt;
     const remaining = gameState.turnTimeLimitMs - elapsed;
 
-    if (remaining <= 0 && !autoPassRef.current) {
-      // Time is already up, pass immediately
-      autoPassRef.current = true;
-      passPlayerTurn(roomCode, currentPlayer.id)
-        .catch(e => console.error('[auto-pass] error:', e))
-        .finally(() => { autoPassRef.current = false; });
+    if (remaining <= 0 && !catchUpRef.current) {
+      // Time already expired — catch up all missed turns
+      catchUpRef.current = true;
+      catchUpExpiredTurns(roomCode, gameState)
+        .catch(e => console.error('[auto-pass catchUp] error:', e))
+        .finally(() => { catchUpRef.current = false; });
       return;
     }
 
     if (remaining > 0) {
-      autoPassRef.current = false;
+      // Schedule auto-pass for when current turn expires
       const timer = setTimeout(() => {
-        if (autoPassRef.current) return;
-        autoPassRef.current = true;
-        passPlayerTurn(roomCode, currentPlayer.id)
-          .catch(e => console.error('[auto-pass] error:', e))
-          .finally(() => { autoPassRef.current = false; });
+        if (catchUpRef.current) return;
+        catchUpRef.current = true;
+        catchUpExpiredTurns(roomCode, gameState)
+          .catch(e => console.error('[auto-pass catchUp] error:', e))
+          .finally(() => { catchUpRef.current = false; });
       }, remaining);
       return () => clearTimeout(timer);
     }
-  }, [gameState?.currentPlayerIndex, gameState?.turnStartedAt, gameState?.phase, roomCode, playerId]);
+  }, [gameState?.currentPlayerIndex, gameState?.turnStartedAt, gameState?.phase, roomCode]);
 
   // Ensure game finalization (leaderboard, history, sessions) — idempotent fallback
   const finalizedRef = useRef<string | null>(null);
