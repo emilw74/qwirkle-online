@@ -393,6 +393,10 @@ export const translations = {
     pl: 'śr.',
     en: 'avg',
   },
+  whatIsQS: {
+    pl: 'Czym jest Qwirkle Score?',
+    en: 'What is Qwirkle Score?',
+  },
 
   // ===== Rules =====
   rulesTitle: {

@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { cn } from '../utils/cn';
 import { ArrowLeft } from 'lucide-react';
 import { useTranslation } from '../i18n/LanguageContext';
@@ -5,6 +6,7 @@ import type { Lang } from '../i18n/translations';
 
 interface RulesProps {
   onBack: () => void;
+  scrollToSection?: string;
 }
 
 const rulesContent: Record<Lang, {
@@ -200,9 +202,22 @@ function ExampleTile({ color, shape }: { color: string; shape: string }) {
   );
 }
 
-export function Rules({ onBack }: RulesProps) {
+export function Rules({ onBack, scrollToSection }: RulesProps) {
   const { t, lang } = useTranslation();
   const r = rulesContent[lang];
+  const sectionRefs = useRef<(HTMLDivElement | null)[]>([]);
+
+  useEffect(() => {
+    if (!scrollToSection) return;
+    const idx = r.sections.findIndex(s =>
+      s.heading.toLowerCase().includes(scrollToSection.toLowerCase())
+    );
+    if (idx >= 0 && sectionRefs.current[idx]) {
+      setTimeout(() => {
+        sectionRefs.current[idx]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 100);
+    }
+  }, [scrollToSection, r.sections]);
 
   return (
     <div className="max-w-md mx-auto space-y-6">
@@ -227,7 +242,7 @@ export function Rules({ onBack }: RulesProps) {
         </div>
 
         {r.sections.map((section, idx) => (
-          <div key={idx} className="space-y-2">
+          <div key={idx} ref={el => { sectionRefs.current[idx] = el; }} className="space-y-2">
             <h3 className="font-display font-bold text-sm flex items-center gap-2">
               <span className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold">
                 {idx + 1}

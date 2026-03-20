@@ -7,9 +7,10 @@ import { useTranslation } from '../i18n/LanguageContext';
 
 interface LeaderboardProps {
   onBack: () => void;
+  onNavigate?: (page: string) => void;
 }
 
-export function Leaderboard({ onBack }: LeaderboardProps) {
+export function Leaderboard({ onBack, onNavigate }: LeaderboardProps) {
   const { t } = useTranslation();
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -37,6 +38,14 @@ export function Leaderboard({ onBack }: LeaderboardProps) {
       <div className="text-center space-y-2">
         <Trophy size={40} className="mx-auto text-yellow-500" />
         <h2 className="font-display font-bold text-xl">{t('leaderboardTitle')}</h2>
+        {onNavigate && (
+          <button
+            onClick={() => onNavigate('rules:ranking')}
+            className="text-xs text-primary hover:underline"
+          >
+            {t('whatIsQS')}
+          </button>
+        )}
       </div>
 
       {isLoading ? (

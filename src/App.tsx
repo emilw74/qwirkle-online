@@ -18,6 +18,9 @@ import { SUPERUSER_EMAIL } from './firebase/gameService';
 
 type Page = 'lobby' | 'game' | 'leaderboard' | 'rules' | 'about' | 'admin';
 
+/** When navigating from Leaderboard to Rules, optionally scroll to a section */
+type RulesScrollTarget = string | undefined;
+
 function AppContent({ profile }: { profile: UserProfile }) {
   const { t } = useTranslation();
   const [page, setPage] = useState<Page>('lobby');
@@ -40,6 +43,7 @@ function AppContent({ profile }: { profile: UserProfile }) {
     }
   }, []);
 
+  const [rulesScrollTarget, setRulesScrollTarget] = useState<RulesScrollTarget>(undefined);
   const [lobbyInitialMode, setLobbyInitialMode] = useState<'menu' | 'mygames'>('menu');
   const [lobbyKey, setLobbyKey] = useState(0);
 
@@ -310,10 +314,23 @@ function AppContent({ profile }: { profile: UserProfile }) {
             />
           )}
           {page === 'leaderboard' && (
-            <Leaderboard onBack={() => setPage('lobby')} />
+            <Leaderboard
+              onBack={() => setPage('lobby')}
+              onNavigate={(target) => {
+                if (target.startsWith('rules:')) {
+                  const section = target.split(':')[1];
+                  setRulesScrollTarget(section);
+                  history.pushState({ page: 'rules' }, '');
+                  setPage('rules');
+                }
+              }}
+            />
           )}
           {page === 'rules' && (
-            <Rules onBack={() => setPage('lobby')} />
+            <Rules
+              onBack={() => { setRulesScrollTarget(undefined); setPage('lobby'); }}
+              scrollToSection={rulesScrollTarget}
+            />
           )}
           {page === 'about' && (
             <About onBack={() => setPage('lobby')} />
