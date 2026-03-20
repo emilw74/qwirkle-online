@@ -389,6 +389,10 @@ export const translations = {
     pl: 'najw.',
     en: 'best',
   },
+  avgScore: {
+    pl: 'śr.',
+    en: 'avg',
+  },
 
   // ===== Rules =====
   rulesTitle: {

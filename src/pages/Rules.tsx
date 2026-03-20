@@ -80,6 +80,14 @@ const rulesContent: Record<Lang, {
           'Jeśli nikt nie ma otwartej gry przez dłuższy czas, system automatycznie nadrabia wszystkie przeterminowane tury po otwarciu gry.',
         ],
       },
+      {
+        heading: 'Ranking — Qwirkle Score (QS)',
+        content: [
+          'Pozycja w rankingu zależy od Qwirkle Score (QS) — jednej liczby, która uwzględnia wszystkie Twoje osiągnięcia.',
+          'Na QS wpływają: procent wygranych (największa waga), średni wynik punktowy, częstotliwość zdobywania Qwirkle oraz doświadczenie.',
+          'Im więcej wygrywasz, im wyższe masz wyniki i im częściej zdobywasz Qwirkle, tym wyższy Twój QS.',
+        ],
+      },
     ],
   },
   en: {
@@ -149,6 +157,14 @@ const rulesContent: Record<Lang, {
           'If a player doesn\u2019t make a move within the time limit, an automatic pass is triggered.',
           'Bots are not restricted by the timer — they play instantly.',
           'If nobody has the game open for an extended period, the system automatically catches up all expired turns when the game is opened.',
+        ],
+      },
+      {
+        heading: 'Ranking — Qwirkle Score (QS)',
+        content: [
+          'Your ranking position is determined by your Qwirkle Score (QS) — a single number that reflects all your achievements.',
+          'QS is based on: win rate (highest weight), average score, Qwirkle frequency, and experience.',
+          'The more you win, the higher your scores, and the more Qwirkles you achieve, the higher your QS.',
         ],
       },
     ],

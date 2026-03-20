@@ -370,13 +370,23 @@ export function subscribeToRoom(
 
 // --- Leaderboard ---
 
+export function computeRankScore(e: LeaderboardEntry): number {
+  if (e.gamesPlayed === 0) return 0;
+  const winRate = e.gamesWon / e.gamesPlayed;           // 0–1
+  const qwirkleRate = e.totalQwirkles / e.gamesPlayed;  // 0–~2
+  const activityBonus = Math.min(e.gamesPlayed, 20) * 0.5; // 0–10
+  return Math.round(
+    (winRate * 40) + (e.averageScore * 0.3) + (qwirkleRate * 20) + activityBonus
+  );
+}
+
 export async function getLeaderboard(): Promise<LeaderboardEntry[]> {
   const snapshot = await get(ref(db, 'leaderboard'));
   if (!snapshot.exists()) return [];
 
   const data = snapshot.val();
   const entries: LeaderboardEntry[] = Object.values(data);
-  entries.sort((a, b) => b.highestScore - a.highestScore);
+  entries.sort((a, b) => computeRankScore(b) - computeRankScore(a));
   return entries;
 }
 

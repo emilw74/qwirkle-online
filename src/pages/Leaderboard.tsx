@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { getLeaderboard } from '../firebase/gameService';
+import { getLeaderboard, computeRankScore } from '../firebase/gameService';
 import { LeaderboardEntry } from '../game/types';
 import { cn } from '../utils/cn';
-import { ArrowLeft, Trophy, Medal, Flame, Target } from 'lucide-react';
+import { ArrowLeft, Trophy, Medal, Flame, Target, Star } from 'lucide-react';
 import { useTranslation } from '../i18n/LanguageContext';
 
 interface LeaderboardProps {
@@ -53,46 +53,56 @@ export function Leaderboard({ onBack }: LeaderboardProps) {
         </div>
       ) : (
         <div className="space-y-2">
-          {entries.map((entry, idx) => (
-            <div
-              key={entry.nickname}
-              className={cn(
-                'flex items-center gap-3 p-4 rounded-xl border transition-all',
-                idx === 0 && 'bg-yellow-500/10 border-yellow-500/30',
-                idx === 1 && 'bg-gray-200/50 dark:bg-gray-700/30 border-gray-300/50 dark:border-gray-600/50',
-                idx === 2 && 'bg-orange-500/10 border-orange-500/20',
-                idx > 2 && 'bg-card border-border/50',
-              )}
-            >
-              <div className={cn(
-                'w-10 h-10 rounded-full flex items-center justify-center font-display font-bold text-sm flex-shrink-0',
-                idx === 0 && 'bg-yellow-500 text-white',
-                idx === 1 && 'bg-gray-400 dark:bg-gray-500 text-white',
-                idx === 2 && 'bg-orange-500 text-white',
-                idx > 2 && 'bg-muted text-muted-foreground',
-              )}>
-                {idx + 1}
-              </div>
+          {entries.map((entry, idx) => {
+            const qs = computeRankScore(entry);
+            return (
+              <div
+                key={entry.nickname}
+                className={cn(
+                  'flex items-center gap-3 p-4 rounded-xl border transition-all',
+                  idx === 0 && 'bg-yellow-500/10 border-yellow-500/30',
+                  idx === 1 && 'bg-gray-200/50 dark:bg-gray-700/30 border-gray-300/50 dark:border-gray-600/50',
+                  idx === 2 && 'bg-orange-500/10 border-orange-500/20',
+                  idx > 2 && 'bg-card border-border/50',
+                )}
+              >
+                <div className={cn(
+                  'w-10 h-10 rounded-full flex items-center justify-center font-display font-bold text-sm flex-shrink-0',
+                  idx === 0 && 'bg-yellow-500 text-white',
+                  idx === 1 && 'bg-gray-400 dark:bg-gray-500 text-white',
+                  idx === 2 && 'bg-orange-500 text-white',
+                  idx > 2 && 'bg-muted text-muted-foreground',
+                )}>
+                  {idx + 1}
+                </div>
 
-              <div className="flex-1 min-w-0">
-                <div className="font-medium text-sm truncate">{entry.nickname}</div>
-                <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                  <span>{entry.gamesPlayed} {t('gamesPlayed')}</span>
-                  <span>{entry.gamesWon} {t('gamesWon')}</span>
-                  {entry.totalQwirkles > 0 && (
-                    <span className="flex items-center gap-0.5 text-primary">
-                      <Flame size={12} /> {entry.totalQwirkles}
-                    </span>
-                  )}
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium text-sm truncate">{entry.nickname}</div>
+                  <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
+                    <span>{entry.gamesPlayed} {t('gamesPlayed')}</span>
+                    <span>{entry.gamesWon} {t('gamesWon')}</span>
+                    {entry.totalQwirkles > 0 && (
+                      <span className="flex items-center gap-0.5 text-primary">
+                        <Flame size={12} /> {entry.totalQwirkles}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
+                    <span>{t('avgScore')}: {entry.averageScore}</span>
+                    <span>{t('highest')}: {entry.highestScore}</span>
+                  </div>
+                </div>
+
+                <div className="text-right flex-shrink-0">
+                  <div className="font-display font-bold text-lg flex items-center gap-1 justify-end">
+                    <Star size={16} className="text-yellow-500" />
+                    {qs}
+                  </div>
+                  <div className="text-xs text-muted-foreground">QS</div>
                 </div>
               </div>
-
-              <div className="text-right flex-shrink-0">
-                <div className="font-display font-bold text-lg">{entry.highestScore}</div>
-                <div className="text-xs text-muted-foreground">{t('highest')}</div>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
