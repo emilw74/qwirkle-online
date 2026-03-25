@@ -90,6 +90,16 @@ const rulesContent: Record<Lang, {
           'Im więcej wygrywasz, im wyższe masz wyniki i im częściej zdobywasz Qwirkle, tym wyższy Twój QS.',
         ],
       },
+      {
+        heading: 'Oznaczenia ruchów',
+        content: [
+          'Obok wyniku każdego gracza wyświetlany jest wynik jego ostatniego ruchu.',
+          '+N — gracz zdobył N punktów (np. +5).',
+          'p — gracz spasował (pas ręczny).',
+          'c — automatyczny pas z powodu upłynięcia czasu (clock).',
+          'w — gracz wymienił kafelki (wymiana).',
+        ],
+      },
     ],
   },
   en: {
@@ -167,6 +177,16 @@ const rulesContent: Record<Lang, {
           'Your ranking position is determined by your Qwirkle Score (QS) — a single number that reflects all your achievements.',
           'QS is based on: win rate (highest weight), average score, Qwirkle frequency, and experience.',
           'The more you win, the higher your scores, and the more Qwirkles you achieve, the higher your QS.',
+        ],
+      },
+      {
+        heading: 'Move Notation',
+        content: [
+          'Next to each player\u2019s score, the result of their last move is displayed.',
+          '+N \u2014 the player scored N points (e.g. +5).',
+          'p \u2014 the player passed (manual pass).',
+          'c \u2014 automatic pass due to time expiry (clock).',
+          'w \u2014 the player swapped tiles.',
         ],
       },
     ],

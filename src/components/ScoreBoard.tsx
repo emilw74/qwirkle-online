@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Player } from '../game/types';
+import { Player, GameMove, getLastMoveLabel } from '../game/types';
 import { cn } from '../utils/cn';
 import { Bot, User, Clock } from 'lucide-react';
 import { useTranslation } from '../i18n/LanguageContext';
@@ -11,6 +11,7 @@ interface ScoreBoardProps {
   bagSize: number;
   turnTimeLimitMs?: number;
   turnStartedAt?: number;
+  moves?: GameMove[];
 }
 
 function formatCountdown(remainingMs: number): string {
@@ -22,7 +23,7 @@ function formatCountdown(remainingMs: number): string {
   return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
-export function ScoreBoard({ players, currentPlayerIndex, myPlayerId, bagSize, turnTimeLimitMs, turnStartedAt }: ScoreBoardProps) {
+export function ScoreBoard({ players, currentPlayerIndex, myPlayerId, bagSize, turnTimeLimitMs, turnStartedAt, moves }: ScoreBoardProps) {
   const { t } = useTranslation();
   const [now, setNow] = useState(Date.now());
 
@@ -94,6 +95,19 @@ export function ScoreBoard({ players, currentPlayerIndex, myPlayerId, bagSize, t
               )}>
                 {player.score}
               </span>
+              {moves && (() => {
+                const label = getLastMoveLabel(moves, player.id);
+                if (!label) return null;
+                const isScore = label.startsWith('+');
+                return (
+                  <span className={cn(
+                    'text-[9px] tabular-nums',
+                    isScore ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground',
+                  )}>
+                    {label}
+                  </span>
+                );
+              })()}
               {bagSize === 0 && (
                 <span className="text-[9px] px-1 py-0.5 rounded bg-muted/80 text-muted-foreground tabular-nums" title={t('tilesLeft')}>
                   {player.hand?.length || 0}✦

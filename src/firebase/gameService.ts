@@ -67,6 +67,9 @@ export async function catchUpExpiredTurns(roomCode: string, state: GameState): P
     } else {
       // Human player timed out — execute a pass.
       const passState = passTurn(current, currentPlayer.id);
+      // Mark the last move as auto-pass (time expiry)
+      const lastMove = passState.moves[passState.moves.length - 1];
+      if (lastMove) lastMove.isAutoPass = true;
       // Advance turnStartedAt to deadline (when this turn expired)
       if (passState.phase === 'playing') {
         passState.turnStartedAt = deadline;

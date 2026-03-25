@@ -9,7 +9,7 @@ import {
   placeTiles, swapPlayerTiles, passPlayerTurn, executeAITurn,
   subscribeToRoom, ensureGameFinalized, catchUpExpiredTurns
 } from '../firebase/gameService';
-import { Tile, PlacedTile, Position, GameState } from '../game/types';
+import { Tile, PlacedTile, Position, GameState, getLastMoveLabel } from '../game/types';
 import { validateMove, boardFromRecord } from '../game/engine';
 import { cn } from '../utils/cn';
 import { ArrowLeft, Trophy, MessageCircle } from 'lucide-react';
@@ -343,7 +343,22 @@ export function Game({ onNavigate }: GameProps) {
                   {player.isAI && ' 🤖'}
                 </div>
               </div>
-              <div className="font-display font-bold text-xl">{player.score}</div>
+              <div className="flex items-baseline gap-1">
+                <span className="font-display font-bold text-xl">{player.score}</span>
+                {(() => {
+                  const label = getLastMoveLabel(gameState.moves || [], player.id);
+                  if (!label) return null;
+                  const isScore = label.startsWith('+');
+                  return (
+                    <span className={cn(
+                      'text-[10px] tabular-nums',
+                      isScore ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground',
+                    )}>
+                      {label}
+                    </span>
+                  );
+                })()}
+              </div>
             </div>
           ))}
         </div>
@@ -377,6 +392,7 @@ export function Game({ onNavigate }: GameProps) {
           bagSize={(gameState.bag || []).length}
           turnTimeLimitMs={gameState.turnTimeLimitMs}
           turnStartedAt={gameState.turnStartedAt}
+          moves={gameState.moves}
         />
       </div>
 

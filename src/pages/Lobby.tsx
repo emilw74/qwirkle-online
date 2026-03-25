@@ -11,7 +11,7 @@ import {
   Users, Bot, Play, Plus, LogIn, Trophy, Copy, Check,
   ArrowLeft, Gamepad2, ChevronRight, X, BookOpen, Info, Trash2, Clock, Shield,
 } from 'lucide-react';
-import { AILevel, GameState, Tile } from '../game/types';
+import { AILevel, GameState, Tile, getLastMoveLabel } from '../game/types';
 import { TileView } from '../components/TileView';
 import { posKey, parseKey } from '../game/engine';
 import { useTranslation } from '../i18n/LanguageContext';
@@ -560,6 +560,19 @@ export function Lobby({ onNavigate, initialMode = 'menu', onModeChange, isSuperU
                                       {i > 0 && <span className="text-muted-foreground font-normal">{gameState.players.length === 2 ? ' vs ' : ', '}</span>}
                                       <span className={p.isAI ? 'text-[#2563eb] dark:text-blue-300' : ''}>{p.nickname}</span>
                                       <span className="text-muted-foreground font-normal">: {p.score}</span>
+                                      {gameState.moves?.length > 0 && (() => {
+                                        const label = getLastMoveLabel(gameState.moves, p.id);
+                                        if (!label) return null;
+                                        const isScore = label.startsWith('+');
+                                        return (
+                                          <span className={cn(
+                                            'text-[9px] ml-0.5 tabular-nums',
+                                            isScore ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground/60',
+                                          )}>
+                                            {label}
+                                          </span>
+                                        );
+                                      })()}
                                     </span>
                                   ))}
                                 </div>

@@ -44,6 +44,7 @@ export interface GameMove {
   score: number;
   isSwap: boolean;
   isPass?: boolean;
+  isAutoPass?: boolean; // true = pass due to time expiry
   timestamp: number;
 }
 
@@ -89,6 +90,24 @@ export interface GameHistoryEntry {
   // Deletion metadata
   deletedAt?: number;
   deletedBy?: string; // nickname of the user who deleted
+}
+
+/**
+ * Get the last move label for a given player from the moves array.
+ * Returns: "+N" for scoring move, "p" for manual pass, "c" for auto-pass (clock),
+ * "w" for swap, or "" if no moves yet.
+ */
+export function getLastMoveLabel(moves: GameMove[], playerId: string): string {
+  for (let i = moves.length - 1; i >= 0; i--) {
+    const m = moves[i];
+    if (m.playerId !== playerId) continue;
+    if (m.isAutoPass) return 'c';
+    if (m.isPass) return 'p';
+    if (m.isSwap) return 'w';
+    if (m.score > 0) return `+${m.score}`;
+    return '';
+  }
+  return '';
 }
 
 export const TILE_COLORS: TileColor[] = ['red', 'orange', 'yellow', 'green', 'blue', 'purple'];
