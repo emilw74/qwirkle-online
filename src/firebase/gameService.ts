@@ -84,10 +84,10 @@ export async function catchUpExpiredTurns(roomCode: string, state: GameState): P
     iterations++;
   }
 
-  // After catching up, set turnStartedAt to real time so the next turn timer works normally
-  if (current !== state && current.phase === 'playing') {
-    current.turnStartedAt = Date.now();
-  }
+  // After catching up, keep turnStartedAt as-is (set to the deadline of the last expired turn).
+  // This ensures the current player's timer reflects the real elapsed time since their turn started,
+  // even if nobody had the game open. Do NOT reset to Date.now() — that would gift the current
+  // player a fresh full turn duration regardless of how long ago their turn actually started.
 
   // Save final state to Firebase once at the end
   if (current !== state) {
