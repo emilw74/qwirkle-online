@@ -100,6 +100,11 @@ function FinishedGameDetail({ session, onClose }: { session: PlayerSession; onCl
 
         <div className="text-xs text-muted-foreground">
           {t('finishedAt')} {finishedDate}
+          {session.endReason === 'allPassed' && (
+            <span className="ml-2 italic text-muted-foreground/70">
+              ({t('endedByAllPassed')})
+            </span>
+          )}
         </div>
 
         {/* Scores */}
@@ -745,6 +750,11 @@ export function Lobby({ onNavigate, initialMode = 'menu', onModeChange, isSuperU
                                     {session.winner && (
                                       <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-500/15 text-yellow-700 dark:text-yellow-400 font-medium">
                                         🏆 {session.winner}
+                                      </span>
+                                    )}
+                                    {session.endReason === 'allPassed' && (
+                                      <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground italic">
+                                        {t('endedByAllPassed')}
                                       </span>
                                     )}
                                   </div>

@@ -4,7 +4,7 @@ import {
 } from 'firebase/database';
 import {
   GameState, Player, Tile, PlacedTile, GameMove,
-  LeaderboardEntry, GameHistoryEntry
+  LeaderboardEntry, GameHistoryEntry, GameEndReason
 } from '../game/types';
 import {
   createGameState, addPlayerToGame, addAIPlayer, startGame,
@@ -434,6 +434,12 @@ async function updateLeaderboard(gameState: GameState): Promise<void> {
 
 // --- Game History ---
 
+function getEndReason(gameState: GameState): GameEndReason {
+  return gameState.consecutivePasses >= gameState.players.length * 2
+    ? 'allPassed'
+    : 'completed';
+}
+
 async function saveGameHistory(gameState: GameState): Promise<void> {
   const entry: GameHistoryEntry = {
     gameId: gameState.id,
@@ -447,6 +453,7 @@ async function saveGameHistory(gameState: GameState): Promise<void> {
     date: Date.now(),
     totalMoves: gameState.moves.length,
     hadQwirkle: gameState.moves.some(m => m.score >= 12),
+    endReason: getEndReason(gameState),
   };
 
   await push(ref(db, 'gameHistory'), entry);
@@ -468,6 +475,7 @@ export interface PlayerSession {
   finalPlayers?: { nickname: string; score: number; isAI?: boolean }[];
   winner?: string;
   hostId?: string; // uid of the game creator
+  endReason?: 'completed' | 'allPassed';
   // Deletion metadata
   deletedAt?: number;
   deletedBy?: string; // nickname of the user who deleted
@@ -523,6 +531,7 @@ export async function markSessionFinished(
     })),
     winner: gameState.winner || '',
     gameName: generateGameName(gameState.players),
+    endReason: getEndReason(gameState),
   }));
 }
 
@@ -596,6 +605,7 @@ export async function getGamesForPlayer(
           finalBoard: state.board,
           finalPlayers: state.players.map(p => ({ nickname: p.nickname, score: p.score, isAI: p.isAI })),
           winner: state.winner || '',
+          endReason: getEndReason(state),
         });
       } else {
         active.push({ session, gameState: state });

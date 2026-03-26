@@ -296,6 +296,10 @@ export const translations = {
     pl: 'Koniec gry',
     en: 'Game over',
   },
+  endedByAllPassed: {
+    pl: 'Zakończona przez pasy',
+    en: 'Ended by passes',
+  },
   winner: {
     pl: 'Wygrywa:',
     en: 'Winner:',

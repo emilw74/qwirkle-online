@@ -316,6 +316,11 @@ export function Game({ onNavigate }: GameProps) {
           <p className="text-muted-foreground">
             {t('winner')} <strong className="text-foreground">{gameState.winner}</strong>
           </p>
+          {gameState.consecutivePasses >= gameState.players.length * 2 && (
+            <p className="text-xs text-muted-foreground/70 italic">
+              {t('endedByAllPassed')}
+            </p>
+          )}
         </div>
 
         <div className="bg-card rounded-2xl border border-border/50 p-5 space-y-3">

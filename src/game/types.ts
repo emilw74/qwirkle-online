@@ -79,6 +79,8 @@ export interface LeaderboardEntry {
   totalQwirkles: number;
 }
 
+export type GameEndReason = 'completed' | 'allPassed';
+
 export interface GameHistoryEntry {
   gameId: string;
   roomCode: string;
@@ -87,6 +89,7 @@ export interface GameHistoryEntry {
   date: number;
   totalMoves: number;
   hadQwirkle: boolean;
+  endReason?: GameEndReason;
   // Deletion metadata
   deletedAt?: number;
   deletedBy?: string; // nickname of the user who deleted
