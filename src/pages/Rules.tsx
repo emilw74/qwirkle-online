@@ -63,13 +63,13 @@ const rulesContent: Record<Lang, {
         heading: 'Pasowanie',
         content: [
           'Jeśli nie możesz wykonać żadnego ruchu i nie chcesz wymieniać, możesz spasować.',
-          'Jeśli wszyscy gracze spasują pod rząd, gra się kończy.',
+          'Jeśli wszyscy gracze spasują 2 pełne rundy z rzędu (tzn. każdy spasuje dwukrotnie bez żadnego ruchu między nimi), gra się kończy.',
         ],
       },
       {
         heading: 'Koniec gry',
         content: [
-          'Gra kończy się gdy: gracz ułoży ostatni kafelek z ręki, lub wszyscy gracze spasują pod rząd.',
+          'Gra kończy się gdy: gracz ułoży ostatni kafelek z ręki, lub wszyscy gracze spasują 2 pełne rundy z rzędu.',
           'Wygrywa gracz z najwyższym wynikiem.',
         ],
       },
@@ -152,13 +152,13 @@ const rulesContent: Record<Lang, {
         heading: 'Passing',
         content: [
           'If you cannot make a move and don\'t want to swap, you may pass.',
-          'If all players pass in a row, the game ends.',
+          'If all players pass for 2 full rounds in a row (i.e. each player passes twice with no move in between), the game ends.',
         ],
       },
       {
         heading: 'End of Game',
         content: [
-          'The game ends when: a player places their last tile, or all players pass consecutively.',
+          'The game ends when: a player places their last tile, or all players pass for 2 full rounds in a row.',
           'The player with the highest score wins.',
         ],
       },

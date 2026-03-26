@@ -622,8 +622,8 @@ export function passTurn(state: GameState, playerId: string): GameState {
   let phase = state.phase;
   let winner = state.winner;
   
-  // If all players pass consecutively, game ends
-  if (newConsecutivePasses >= state.players.length) {
+  // If all players pass 2 full rounds consecutively, game ends
+  if (newConsecutivePasses >= state.players.length * 2) {
     phase = 'finished';
     const maxScore = Math.max(...state.players.map(p => p.score));
     const winnerPlayer = state.players.find(p => p.score === maxScore);
