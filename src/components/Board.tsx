@@ -224,7 +224,7 @@ export function Board({ board, onCellClick, selectedTile, placedThisTurn, isMyTu
                       size={CELL_SIZE}
                       className={cn(
                         isPlacedThisTurn && !isScoring && 'ring-2 ring-accent ring-offset-1 ring-offset-background',
-                        isScoring && 'ring-2 ring-emerald-400 dark:ring-emerald-500 ring-offset-1 ring-offset-background scoring-tile-glow',
+                        isScoring && 'ring-2 ring-amber-400 dark:ring-amber-300 ring-offset-1 ring-offset-background scoring-tile-glow',
                         isHighlighted && !isScoring && 'ring-2 ring-yellow-500 ring-offset-1 ring-offset-background animate-pulse',
                       )}
                     />
