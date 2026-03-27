@@ -15,13 +15,12 @@ interface GameActionsProps {
   showLastMove: boolean;
   onToggleLastMove: () => void;
   hasLastMove: boolean;
-  previewScore?: number;
 }
 
 export function GameActions({
   isMyTurn, hasPlacedTiles, canSwap,
   onConfirmMove, onUndoLast, onClearAll, onSwap, onPass, isLoading,
-  showLastMove, onToggleLastMove, hasLastMove, previewScore,
+  showLastMove, onToggleLastMove, hasLastMove,
 }: GameActionsProps) {
   const { t } = useTranslation();
 
@@ -29,11 +28,6 @@ export function GameActions({
     <div className="flex items-center gap-1.5 justify-center">
       {hasPlacedTiles ? (
         <>
-          {(previewScore != null && previewScore > 0) && (
-            <span className="inline-flex items-center justify-center min-w-[28px] h-7 px-1.5 rounded-lg bg-primary/15 text-primary font-bold text-sm tabular-nums">
-              +{previewScore}
-            </span>
-          )}
           <button
             onClick={onConfirmMove}
             disabled={!isMyTurn || isLoading}

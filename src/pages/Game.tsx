@@ -10,7 +10,7 @@ import {
   subscribeToRoom, ensureGameFinalized, catchUpExpiredTurns
 } from '../firebase/gameService';
 import { Tile, PlacedTile, Position, GameState, getLastMoveLabel } from '../game/types';
-import { validateMove, boardFromRecord } from '../game/engine';
+import { validateMove, boardFromRecord, getScoringLinePositions } from '../game/engine';
 import { cn } from '../utils/cn';
 import { ArrowLeft, Trophy, MessageCircle } from 'lucide-react';
 import { useTranslation } from '../i18n/LanguageContext';
@@ -196,13 +196,15 @@ export function Game({ onNavigate }: GameProps) {
   const board = gameState.board || {};
   const placedIds = new Set(placedTilesThisTurn.map(t => t.id));
 
-  // Compute preview score reactively as tiles are placed
-  const previewScore = useMemo(() => {
-    if (placedTilesThisTurn.length === 0) return 0;
+  // Compute preview score and scoring line positions reactively as tiles are placed
+  const { previewScore, scoringPositions } = useMemo(() => {
+    if (placedTilesThisTurn.length === 0) return { previewScore: 0, scoringPositions: new Set<string>() };
     const tempBoard = boardFromRecord(board);
     const isFirstMove = tempBoard.size === 0;
     const result = validateMove(tempBoard, placedTilesThisTurn, isFirstMove);
-    return result.valid ? result.score : 0;
+    const score = result.valid ? result.score : 0;
+    const positions = score > 0 ? getScoringLinePositions(tempBoard, placedTilesThisTurn) : new Set<string>();
+    return { previewScore: score, scoringPositions: positions };
   }, [placedTilesThisTurn, board]);
 
   // Get the last non-swap move's tile positions for highlighting
@@ -421,6 +423,8 @@ export function Game({ onNavigate }: GameProps) {
           isMyTurn={isMyTurn}
           myHand={myHand.filter(t => !placedIds.has(t.id))}
           highlightedPositions={lastMovePositions}
+          previewScore={previewScore}
+          scoringPositions={scoringPositions}
         />
       </div>
 
@@ -446,7 +450,6 @@ export function Game({ onNavigate }: GameProps) {
           showLastMove={showLastMove}
           onToggleLastMove={handleToggleLastMove}
           hasLastMove={(gameState.moves || []).some(m => !m.isSwap && m.tiles?.length > 0)}
-          previewScore={previewScore}
         />
       </div>
 

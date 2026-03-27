@@ -125,3 +125,12 @@
 .pwa-prompt {
   animation: slideUp 0.3s ease-out;
 }
+
+/* Scoring line tiles — subtle pulse glow */
+@keyframes scoringGlow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0); }
+  50% { box-shadow: 0 0 8px 2px rgba(52, 211, 153, 0.35); }
+}
+.scoring-tile-glow {
+  animation: scoringGlow 1.2s ease-in-out infinite;
+}

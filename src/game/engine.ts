@@ -271,6 +271,55 @@ export function validateMove(
   return { valid: true, score: totalScore, qwirkle: hasQwirkle };
 }
 
+/**
+ * Returns the set of position keys ("row,col") for all tiles that belong to
+ * scoring lines created by the placed tiles. Used for visual highlighting.
+ */
+export function getScoringLinePositions(
+  board: Board,
+  placedTiles: PlacedTile[]
+): Set<string> {
+  const result = new Set<string>();
+  if (placedTiles.length === 0) return result;
+
+  // Build temp board with placed tiles
+  const tempBoard = new Map(board);
+  for (const pt of placedTiles) {
+    tempBoard.set(posKey(pt.position.row, pt.position.col), {
+      color: pt.color, shape: pt.shape, id: pt.id,
+    });
+  }
+
+  const positions = placedTiles.map(t => t.position);
+
+  for (const pos of positions) {
+    for (const dir of ['row', 'col'] as const) {
+      // Walk backward to find line start
+      let r = pos.row, c = pos.col;
+      while (true) {
+        if (dir === 'row') c--; else r--;
+        if (!tempBoard.has(posKey(r, c))) break;
+      }
+      // Step back to first valid
+      if (dir === 'row') c++; else r++;
+
+      // Collect all positions in this line
+      const linePositions: string[] = [];
+      while (tempBoard.has(posKey(r, c))) {
+        linePositions.push(posKey(r, c));
+        if (dir === 'row') c++; else r++;
+      }
+
+      // Only count lines of length >= 2
+      if (linePositions.length >= 2) {
+        for (const p of linePositions) result.add(p);
+      }
+    }
+  }
+
+  return result;
+}
+
 // Recalculate score more carefully
 export function calculateScore(board: Board, placedTiles: PlacedTile[]): number {
   const positions = placedTiles.map(t => t.position);
