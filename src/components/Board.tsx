@@ -211,7 +211,7 @@ export function Board({ board, onCellClick, selectedTile, placedThisTurn, isMyTu
               const isValid = validPositions.has(key);
               const isPlacedThisTurn = !!placedTile;
               const isHighlighted = highlightedPositions?.has(key);
-              const isScoring = !isPlacedThisTurn && scoringPositions?.has(key);
+              const isScoring = scoringPositions?.has(key);
               // Show score badge on the last placed tile
               const lastPlaced = placedThisTurn.length > 0 ? placedThisTurn[placedThisTurn.length - 1] : null;
               const isLastPlaced = lastPlaced && lastPlaced.position.row === row && lastPlaced.position.col === col;
@@ -223,9 +223,9 @@ export function Board({ board, onCellClick, selectedTile, placedThisTurn, isMyTu
                       tile={tile}
                       size={CELL_SIZE}
                       className={cn(
-                        isPlacedThisTurn && 'ring-2 ring-accent ring-offset-1 ring-offset-background',
+                        isPlacedThisTurn && !isScoring && 'ring-2 ring-accent ring-offset-1 ring-offset-background',
                         isScoring && 'ring-2 ring-emerald-400 dark:ring-emerald-500 ring-offset-1 ring-offset-background scoring-tile-glow',
-                        isHighlighted && 'ring-2 ring-yellow-500 ring-offset-1 ring-offset-background animate-pulse',
+                        isHighlighted && !isScoring && 'ring-2 ring-yellow-500 ring-offset-1 ring-offset-background animate-pulse',
                       )}
                     />
                     {isLastPlaced && previewScore != null && previewScore > 0 && (
