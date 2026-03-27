@@ -1,10 +1,20 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
-import { Tile, PlacedTile, Position } from '../game/types';
+import { Tile, PlacedTile, Position, TileColor } from '../game/types';
 import { posKey, parseKey, boardFromRecord, getValidPlacements } from '../game/engine';
 import { TileView, EmptyCell } from './TileView';
 import { useGameStore } from '../hooks/useGameStore';
 import { cn } from '../utils/cn';
 import { ZoomIn, ZoomOut, Crosshair } from 'lucide-react';
+
+// Contrasting highlight colors per tile color
+const SCORING_RING_COLOR: Record<TileColor, string> = {
+  red: '#06b6d4',     // cyan
+  orange: '#3b82f6',  // blue
+  yellow: '#a855f7',  // purple
+  green: '#ec4899',   // pink
+  blue: '#f97316',    // orange
+  purple: '#84cc16',  // lime
+};
 
 interface BoardProps {
   board: Record<string, Tile>;
@@ -224,9 +234,14 @@ export function Board({ board, onCellClick, selectedTile, placedThisTurn, isMyTu
                       size={CELL_SIZE}
                       className={cn(
                         isPlacedThisTurn && !isScoring && 'ring-2 ring-accent ring-offset-1 ring-offset-background',
-                        isScoring && 'ring-2 ring-amber-400 dark:ring-amber-300 ring-offset-1 ring-offset-background scoring-tile-glow',
+                        isScoring && 'ring-offset-1 ring-offset-background scoring-tile-glow',
                         isHighlighted && !isScoring && 'ring-2 ring-yellow-500 ring-offset-1 ring-offset-background animate-pulse',
                       )}
+                      style={isScoring && tile ? {
+                        '--scoring-color': SCORING_RING_COLOR[tile.color as TileColor],
+                        outline: `2.5px solid ${SCORING_RING_COLOR[tile.color as TileColor]}`,
+                        outlineOffset: '1.5px',
+                      } as React.CSSProperties : undefined}
                     />
                     {isLastPlaced && previewScore != null && previewScore > 0 && (
                       <div className="absolute -top-2.5 -right-2.5 z-10 min-w-[22px] h-[22px] px-1 rounded-full bg-primary text-primary-foreground font-bold text-[11px] flex items-center justify-center shadow-md tabular-nums pointer-events-none">

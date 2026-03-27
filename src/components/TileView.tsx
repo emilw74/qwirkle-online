@@ -1,3 +1,4 @@
+import React from 'react';
 import { Tile, TileColor, TileShape } from '../game/types';
 import { cn } from '../utils/cn';
 
@@ -87,10 +88,11 @@ interface TileViewProps {
   disabled?: boolean;
   className?: string;
   showShadow?: boolean;
+  style?: React.CSSProperties;
 }
 
 export function TileView({
-  tile, size = 48, selected, onClick, disabled, className, showShadow = true,
+  tile, size = 48, selected, onClick, disabled, className, showShadow = true, style,
 }: TileViewProps) {
   const color = COLOR_MAP[tile.color];
 
@@ -112,6 +114,7 @@ export function TileView({
         borderColor: color,
         minWidth: size,
         minHeight: size,
+        ...style,
       }}
     >
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>

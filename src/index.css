@@ -126,10 +126,10 @@
   animation: slideUp 0.3s ease-out;
 }
 
-/* Scoring line tiles — subtle pulse glow */
+/* Scoring line tiles — subtle pulse glow using dynamic --scoring-color */
 @keyframes scoringGlow {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(251, 191, 36, 0); }
-  50% { box-shadow: 0 0 10px 3px rgba(251, 191, 36, 0.45); }
+  0%, 100% { box-shadow: 0 0 0 0 transparent; }
+  50% { box-shadow: 0 0 10px 3px var(--scoring-color, #fbbf24); }
 }
 .scoring-tile-glow {
   animation: scoringGlow 1.2s ease-in-out infinite;
