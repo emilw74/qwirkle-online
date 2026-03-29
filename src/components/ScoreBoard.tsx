@@ -15,12 +15,11 @@ interface ScoreBoardProps {
 }
 
 function formatCountdown(remainingMs: number): string {
-  if (remainingMs <= 0) return '0:00:00';
-  const totalSec = Math.floor(remainingMs / 1000);
-  const h = Math.floor(totalSec / 3600);
-  const m = Math.floor((totalSec % 3600) / 60);
-  const s = totalSec % 60;
-  return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  if (remainingMs <= 0) return '0:00';
+  const totalMin = Math.ceil(remainingMs / 60_000);
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  return `${h}:${String(m).padStart(2, '0')}`;
 }
 
 export function ScoreBoard({ players, currentPlayerIndex, myPlayerId, bagSize, turnTimeLimitMs, turnStartedAt, moves }: ScoreBoardProps) {

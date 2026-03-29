@@ -152,13 +152,10 @@ function FinishedGameDetail({ session, onClose }: { session: PlayerSession; onCl
 
 function formatTimeShort(ms: number): string {
   if (ms <= 0) return '0:00';
-  const totalSec = Math.floor(ms / 1000);
-  const h = Math.floor(totalSec / 3600);
-  const m = Math.floor((totalSec % 3600) / 60);
-  const s = totalSec % 60;
-  if (h > 0) return `${h}h ${m > 0 ? m + 'min' : ''}`;
-  if (m > 0) return `${m}:${s.toString().padStart(2, '0')}`;
-  return `0:${s.toString().padStart(2, '0')}`;
+  const totalMin = Math.ceil(ms / 60_000);
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  return `${h}:${String(m).padStart(2, '0')}`;
 }
 
 function formatTimeLimitDisplay(ms: number): string {
