@@ -7,7 +7,7 @@ import { GameActions } from '../components/GameActions';
 import { TileView } from '../components/TileView';
 import {
   placeTiles, swapPlayerTiles, passPlayerTurn, executeAITurn,
-  subscribeToRoom, ensureGameFinalized, catchUpExpiredTurns
+  subscribeToRoom, ensureGameFinalized, catchUpExpiredTurns, notifyTurnViaTelegram,
 } from '../firebase/gameService';
 import { Tile, PlacedTile, Position, GameState, getLastMoveLabel } from '../game/types';
 import { validateMove, boardFromRecord, getScoringLinePositions } from '../game/engine';
@@ -67,7 +67,15 @@ export function Game({ onNavigate }: GameProps) {
     const delay = 800 + Math.random() * 1200;
     aiTimeoutRef.current = setTimeout(async () => {
       try {
-        await executeAITurn(roomCode);
+        const aiState = await executeAITurn(roomCode);
+        // After AI plays, if next player is human, notify via Telegram
+        if (aiState && aiState.phase === 'playing') {
+          const next = aiState.players[aiState.currentPlayerIndex];
+          if (next && !next.isAI) {
+            const gameName = aiState.players.map(p => p.nickname).join(' vs ');
+            notifyTurnViaTelegram(next.id, aiState.roomCode, gameName);
+          }
+        }
       } catch (e: any) {
         console.error('AI error:', e);
       }
@@ -243,6 +251,15 @@ export function Game({ onNavigate }: GameProps) {
     setError('');
   };
 
+  /** Notify the next human player via Telegram (fire-and-forget) */
+  const notifyNextPlayer = (state: GameState) => {
+    if (state.phase !== 'playing') return;
+    const next = state.players[state.currentPlayerIndex];
+    if (!next || next.isAI) return; // AI will play, notification deferred
+    const gameName = state.players.map(p => p.nickname).join(' vs ');
+    notifyTurnViaTelegram(next.id, state.roomCode, gameName);
+  };
+
   const handleConfirmMove = async () => {
     if (placedTilesThisTurn.length === 0) return;
     setIsLoading(true);
@@ -256,7 +273,8 @@ export function Game({ onNavigate }: GameProps) {
         setIsLoading(false);
         return;
       }
-      await placeTiles(roomCode, playerId, placedTilesThisTurn);
+      const newState = await placeTiles(roomCode, playerId, placedTilesThisTurn);
+      notifyNextPlayer(newState);
       clearPlacements();
       setSelectedTile(null);
     } catch (e: any) {
@@ -276,7 +294,8 @@ export function Game({ onNavigate }: GameProps) {
     setError('');
     try {
       const tilesToSwap = myHand.filter(t => swapSelection.has(t.id));
-      await swapPlayerTiles(roomCode, playerId, tilesToSwap);
+      const newState = await swapPlayerTiles(roomCode, playerId, tilesToSwap);
+      notifyNextPlayer(newState);
       setShowSwapDialog(false);
       setSwapSelection(new Set());
     } catch (e: any) {
@@ -289,7 +308,8 @@ export function Game({ onNavigate }: GameProps) {
     setIsLoading(true);
     setError('');
     try {
-      await passPlayerTurn(roomCode, playerId);
+      const newState = await passPlayerTurn(roomCode, playerId);
+      notifyNextPlayer(newState);
     } catch (e: any) {
       setError(e.message || t('error'));
     }

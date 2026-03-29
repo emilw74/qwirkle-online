@@ -629,6 +629,42 @@ export const translations = {
     pl: 'Twoje konto zostało zablokowane. Nie masz autoryzacji do grania.',
     en: 'Your account has been blocked. You are not authorized to play.',
   },
+  telegramTitle: {
+    pl: 'Powiadomienia Telegram',
+    en: 'Telegram Notifications',
+  },
+  telegramDesc: {
+    pl: 'Otrzymuj powiadomienia gdy nadejdzie Twój ruch',
+    en: 'Get notified when it\'s your turn',
+  },
+  telegramConnect: {
+    pl: 'Połącz Telegram',
+    en: 'Connect Telegram',
+  },
+  telegramConnected: {
+    pl: 'Połączony',
+    en: 'Connected',
+  },
+  telegramDisconnect: {
+    pl: 'Odłącz',
+    en: 'Disconnect',
+  },
+  telegramNotifOn: {
+    pl: 'Powiadomienia włączone',
+    en: 'Notifications on',
+  },
+  telegramNotifOff: {
+    pl: 'Powiadomienia wyłączone',
+    en: 'Notifications off',
+  },
+  telegramMuteGame: {
+    pl: 'Wycisz tę grę',
+    en: 'Mute this game',
+  },
+  telegramUnmuteGame: {
+    pl: 'Włącz powiadomienia',
+    en: 'Unmute this game',
+  },
 } as const;
 
 export type TranslationKey = keyof typeof translations;

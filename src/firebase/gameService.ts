@@ -958,3 +958,51 @@ export async function isUserBanned(uid: string): Promise<boolean> {
   const snap = await get(ref(db, `profiles/${uid}/banned`));
   return snap.exists() && snap.val() === true;
 }
+
+// --- Telegram integration ---
+
+/** Fire-and-forget: notify next player via Telegram (Netlify Function) */
+export function notifyTurnViaTelegram(playerId: string, roomCode: string, gameName: string): void {
+  fetch('/api/notify-turn', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ playerId, roomCode, gameName }),
+  }).catch(() => { /* silent — notifications are best-effort */ });
+}
+
+export interface TelegramSettings {
+  telegramChatId?: number;
+  telegramNotifications?: boolean;
+  telegramMutedGames?: Record<string, boolean>;
+}
+
+export async function getTelegramSettings(uid: string): Promise<TelegramSettings> {
+  const snap = await get(ref(db, `profiles/${uid}`));
+  if (!snap.exists()) return {};
+  const p = snap.val();
+  return {
+    telegramChatId: p.telegramChatId,
+    telegramNotifications: p.telegramNotifications,
+    telegramMutedGames: p.telegramMutedGames,
+  };
+}
+
+export async function setTelegramNotifications(uid: string, enabled: boolean): Promise<void> {
+  await update(ref(db, `profiles/${uid}`), { telegramNotifications: enabled });
+}
+
+export async function disconnectTelegram(uid: string): Promise<void> {
+  await update(ref(db, `profiles/${uid}`), {
+    telegramChatId: null,
+    telegramNotifications: false,
+    telegramMutedGames: null,
+  });
+}
+
+export async function setGameTelegramMute(uid: string, roomCode: string, muted: boolean): Promise<void> {
+  if (muted) {
+    await set(ref(db, `profiles/${uid}/telegramMutedGames/${roomCode}`), true);
+  } else {
+    await set(ref(db, `profiles/${uid}/telegramMutedGames/${roomCode}`), null);
+  }
+}

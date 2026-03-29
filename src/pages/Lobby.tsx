@@ -5,11 +5,12 @@ import {
   savePlayerSession, updateSessionGameName, getGamesForPlayer,
   removePlayerSession, deleteGame,
   PlayerSession, PlayerGames,
+  getTelegramSettings, setTelegramNotifications, disconnectTelegram, TelegramSettings,
 } from '../firebase/gameService';
 import { cn } from '../utils/cn';
 import {
   Users, Bot, Play, Plus, LogIn, Trophy, Copy, Check,
-  ArrowLeft, Gamepad2, ChevronRight, X, BookOpen, Info, Trash2, Clock, Shield,
+  ArrowLeft, Gamepad2, ChevronRight, X, BookOpen, Info, Trash2, Clock, Shield, Send, Unlink, Bell, BellOff,
 } from 'lucide-react';
 import { AILevel, GameState, Tile, getLastMoveLabel } from '../game/types';
 import { TileView } from '../components/TileView';
@@ -208,6 +209,14 @@ export function Lobby({ onNavigate, initialMode = 'menu', onModeChange, isSuperU
   // Delete game state
   const [deleteConfirm, setDeleteConfirm] = useState<{ roomCode: string; gameName: string; hasBots: boolean } | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  // Telegram settings
+  const [tgSettings, setTgSettings] = useState<TelegramSettings>({});
+  const [tgLoading, setTgLoading] = useState(false);
+  useEffect(() => {
+    if (!uid) return;
+    getTelegramSettings(uid).then(setTgSettings);
+  }, [uid]);
 
   // Auto-refresh: only when some game needs background processing (not all waiting on me)
   const [tick, setTick] = useState(0);
@@ -1178,6 +1187,60 @@ export function Lobby({ onNavigate, initialMode = 'menu', onModeChange, isSuperU
             <Shield size={22} className="mx-auto mb-1.5 text-red-500" />
             <div className="text-xs font-medium">{t('adminMenu')}</div>
           </button>
+        )}
+      </div>
+
+      {/* Telegram notifications */}
+      <div className="rounded-xl bg-card border border-border/50 shadow-sm p-3">
+        <div className="flex items-center gap-2 mb-1">
+          <Send size={14} className="text-blue-500" />
+          <span className="text-xs font-semibold">{t('telegramTitle')}</span>
+        </div>
+        <p className="text-[10px] text-muted-foreground mb-2">{t('telegramDesc')}</p>
+        {tgSettings.telegramChatId ? (
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-green-600 dark:text-green-400 font-medium flex items-center gap-1">
+              <Check size={10} /> {t('telegramConnected')}
+            </span>
+            <button
+              onClick={async () => {
+                const on = !tgSettings.telegramNotifications;
+                setTgSettings(s => ({ ...s, telegramNotifications: on }));
+                if (uid) await setTelegramNotifications(uid, on);
+              }}
+              className={cn(
+                'ml-auto flex items-center gap-1 text-[10px] px-2 py-1 rounded-md border transition-colors',
+                tgSettings.telegramNotifications
+                  ? 'border-green-500/30 bg-green-500/10 text-green-700 dark:text-green-400'
+                  : 'border-border/50 bg-muted/50 text-muted-foreground',
+              )}
+            >
+              {tgSettings.telegramNotifications ? <Bell size={10} /> : <BellOff size={10} />}
+              {tgSettings.telegramNotifications ? t('telegramNotifOn') : t('telegramNotifOff')}
+            </button>
+            <button
+              onClick={async () => {
+                if (uid) {
+                  await disconnectTelegram(uid);
+                  setTgSettings({});
+                }
+              }}
+              className="flex items-center gap-1 text-[10px] px-2 py-1 rounded-md border border-border/50 text-muted-foreground hover:text-destructive hover:border-destructive/30 transition-colors"
+            >
+              <Unlink size={10} />
+              {t('telegramDisconnect')}
+            </button>
+          </div>
+        ) : (
+          <a
+            href={`https://t.me/QwirkleOnlineBot?start=${uid}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-blue-500 text-white font-medium hover:bg-blue-600 transition-colors"
+          >
+            <Send size={12} />
+            {t('telegramConnect')}
+          </a>
         )}
       </div>
 

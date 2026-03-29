@@ -1,16 +1,15 @@
+functionsDirectory = "/home/user/workspace/qwirkle-online/netlify/functions"
+functionsDirectoryOrigin = "config"
 headersOrigin = "config"
 redirectsOrigin = "config"
 plugins = []
-
-[functions]
-
-[functions."*"]
 
 [build]
 publish = "/home/user/workspace/qwirkle-online/dist"
 publishOrigin = "config"
 commandOrigin = "config"
 command = "npm run build"
+functions = "/home/user/workspace/qwirkle-online/netlify/functions"
 
 [build.environment]
 NODE_VERSION = "20"
@@ -26,6 +25,10 @@ NODE_VERSION = "20"
 [build.processing.js]
 
 [build.services]
+
+[functions]
+
+[functions."*"]
 
 [[headers]]
 for = "/*"
