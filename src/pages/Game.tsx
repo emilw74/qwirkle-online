@@ -9,11 +9,12 @@ import {
   placeTiles, swapPlayerTiles, passPlayerTurn, executeAITurn,
   subscribeToRoom, ensureGameFinalized, catchUpExpiredTurns,
   notifyTurnViaTelegram, notifyTurnReminderViaTelegram,
+  getTelegramSettings, setGameTelegramMute,
 } from '../firebase/gameService';
 import { Tile, PlacedTile, Position, GameState, getLastMoveLabel } from '../game/types';
 import { validateMove, boardFromRecord, getScoringLinePositions } from '../game/engine';
 import { cn } from '../utils/cn';
-import { ArrowLeft, Trophy, MessageCircle } from 'lucide-react';
+import { ArrowLeft, Trophy, MessageCircle, Bell, BellOff } from 'lucide-react';
 import { useTranslation } from '../i18n/LanguageContext';
 
 interface GameProps {
@@ -36,6 +37,17 @@ export function Game({ onNavigate }: GameProps) {
   const [swapSelection, setSwapSelection] = useState<Set<string>>(new Set());
   const [showLastMove, setShowLastMove] = useState(false);
   const aiTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Telegram per-game mute
+  const [tgConnected, setTgConnected] = useState(false);
+  const [tgMuted, setTgMuted] = useState(false);
+  useEffect(() => {
+    if (!playerId || !roomCode) return;
+    getTelegramSettings(playerId).then(s => {
+      setTgConnected(!!s.telegramChatId && !!s.telegramNotifications);
+      setTgMuted(!!s.telegramMutedGames?.[roomCode]);
+    });
+  }, [playerId, roomCode]);
 
   // Subscribe to room
   useEffect(() => {
@@ -458,16 +470,36 @@ export function Game({ onNavigate }: GameProps) {
   return (
     <div className="flex flex-col h-full">
       {/* Compact top bar: scores inline */}
-      <div className="flex-shrink-0 px-2 py-1.5">
-        <ScoreBoard
-          players={gameState.players}
-          currentPlayerIndex={gameState.currentPlayerIndex}
-          myPlayerId={playerId}
-          bagSize={(gameState.bag || []).length}
-          turnTimeLimitMs={gameState.turnTimeLimitMs}
-          turnStartedAt={gameState.turnStartedAt}
-          moves={gameState.moves}
-        />
+      <div className="flex-shrink-0 px-2 py-1.5 flex items-center gap-1">
+        <div className="flex-1 min-w-0">
+          <ScoreBoard
+            players={gameState.players}
+            currentPlayerIndex={gameState.currentPlayerIndex}
+            myPlayerId={playerId}
+            bagSize={(gameState.bag || []).length}
+            turnTimeLimitMs={gameState.turnTimeLimitMs}
+            turnStartedAt={gameState.turnStartedAt}
+            moves={gameState.moves}
+          />
+        </div>
+        {tgConnected && (
+          <button
+            onClick={async () => {
+              const newMuted = !tgMuted;
+              setTgMuted(newMuted);
+              if (playerId) await setGameTelegramMute(playerId, roomCode, newMuted);
+            }}
+            className={cn(
+              'flex-shrink-0 p-1 rounded-md transition-colors',
+              tgMuted
+                ? 'text-muted-foreground/50 hover:text-muted-foreground'
+                : 'text-blue-500 hover:text-blue-600',
+            )}
+            title={tgMuted ? t('telegramUnmuteGame') : t('telegramMuteGame')}
+          >
+            {tgMuted ? <BellOff size={14} /> : <Bell size={14} />}
+          </button>
+        )}
       </div>
 
       {/* Move info / error — minimal */}
