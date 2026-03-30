@@ -7,7 +7,8 @@ import { GameActions } from '../components/GameActions';
 import { TileView } from '../components/TileView';
 import {
   placeTiles, swapPlayerTiles, passPlayerTurn, executeAITurn,
-  subscribeToRoom, ensureGameFinalized, catchUpExpiredTurns, notifyTurnViaTelegram,
+  subscribeToRoom, ensureGameFinalized, catchUpExpiredTurns,
+  notifyTurnViaTelegram, notifyTurnReminderViaTelegram,
 } from '../firebase/gameService';
 import { Tile, PlacedTile, Position, GameState, getLastMoveLabel } from '../game/types';
 import { validateMove, boardFromRecord, getScoringLinePositions } from '../game/engine';
@@ -134,6 +135,52 @@ export function Game({ onNavigate }: GameProps) {
       return () => clearTimeout(timer);
     }
   }, [gameState?.currentPlayerIndex, gameState?.turnStartedAt, gameState?.phase, roomCode]);
+
+  // Telegram reminder: notify current player when their turn deadline approaches
+  const reminderSentRef = useRef<string | null>(null); // tracks "roomCode:turnStartedAt" to avoid duplicates
+  useEffect(() => {
+    if (!gameState || !roomCode || gameState.phase !== 'playing') return;
+    if (!gameState.turnTimeLimitMs || !gameState.turnStartedAt) return;
+
+    const limitMs = gameState.turnTimeLimitMs;
+    const currentPlayer = gameState.players[gameState.currentPlayerIndex];
+    if (!currentPlayer || currentPlayer.isAI) return;
+
+    // Determine reminder threshold:
+    // >= 60min limit → remind 30min before
+    // 10–59min limit → remind 5min before
+    // < 10min limit → no reminder
+    let reminderBeforeMs: number;
+    let minutesLabel: number;
+    if (limitMs >= 60 * 60_000) {
+      reminderBeforeMs = 30 * 60_000;
+      minutesLabel = 30;
+    } else if (limitMs >= 10 * 60_000) {
+      reminderBeforeMs = 5 * 60_000;
+      minutesLabel = 5;
+    } else {
+      return; // no reminder for < 10 min games
+    }
+
+    const now = Date.now();
+    const elapsed = now - gameState.turnStartedAt;
+    const deadline = gameState.turnTimeLimitMs;
+    const reminderAt = deadline - reminderBeforeMs; // ms from turn start when reminder fires
+    const msUntilReminder = reminderAt - elapsed;
+
+    if (msUntilReminder <= 0) return; // already past reminder time
+
+    const turnKey = `${roomCode}:${gameState.turnStartedAt}`;
+    if (reminderSentRef.current === turnKey) return; // already scheduled/sent for this turn
+
+    const timer = setTimeout(() => {
+      reminderSentRef.current = turnKey;
+      const gameName = gameState.players.map(p => p.nickname).join(' vs ');
+      notifyTurnReminderViaTelegram(currentPlayer.id, roomCode, gameName, minutesLabel);
+    }, msUntilReminder);
+
+    return () => clearTimeout(timer);
+  }, [gameState?.currentPlayerIndex, gameState?.turnStartedAt, gameState?.phase, roomCode, gameState?.turnTimeLimitMs]);
 
   // Ensure game finalization (leaderboard, history, sessions) — idempotent fallback
   const finalizedRef = useRef<string | null>(null);

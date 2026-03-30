@@ -966,8 +966,17 @@ export function notifyTurnViaTelegram(playerId: string, roomCode: string, gameNa
   fetch('/api/notify-turn', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ playerId, roomCode, gameName }),
+    body: JSON.stringify({ playerId, roomCode, gameName, type: 'turn' }),
   }).catch(() => { /* silent — notifications are best-effort */ });
+}
+
+/** Fire-and-forget: send turn deadline reminder via Telegram */
+export function notifyTurnReminderViaTelegram(playerId: string, roomCode: string, gameName: string, minutesLeft: number): void {
+  fetch('/api/notify-turn', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ playerId, roomCode, gameName, type: 'reminder', minutesLeft }),
+  }).catch(() => { /* silent */ });
 }
 
 export interface TelegramSettings {

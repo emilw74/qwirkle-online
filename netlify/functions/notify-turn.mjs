@@ -1,7 +1,7 @@
 /**
  * Netlify Function: Notify Turn
- * Called by the client after a move to send Telegram notification to the next player.
- * Body: { playerId: string, roomCode: string, gameName: string }
+ * Called by the client to send Telegram notifications.
+ * Body: { playerId: string, roomCode: string, gameName: string, type?: 'turn' | 'reminder', minutesLeft?: number }
  */
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
@@ -13,7 +13,7 @@ export default async (req) => {
   }
 
   try {
-    const { playerId, roomCode, gameName } = await req.json();
+    const { playerId, roomCode, gameName, type = 'turn', minutesLeft } = await req.json();
 
     if (!playerId || !roomCode) {
       return new Response(JSON.stringify({ error: "Missing playerId or roomCode" }), {
@@ -44,13 +44,21 @@ export default async (req) => {
     const displayName = gameName || "Qwirkle";
     const siteUrl = "https://qwirkle.ewakon.pl";
 
+    // Build message based on type
+    let text;
+    if (type === 'reminder') {
+      text = `⏰ <b>Pozostało ${minutesLeft} min!</b> / <b>${minutesLeft} min left!</b>\n${displayName}`;
+    } else {
+      text = `🎲 <b>Twój ruch!</b> / <b>Your turn!</b>\n${displayName}`;
+    }
+
     // Send Telegram message
     const tgRes = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         chat_id: profile.telegramChatId,
-        text: `🎲 <b>Twój ruch!</b> / <b>Your turn!</b>\n${displayName}`,
+        text,
         parse_mode: "HTML",
         reply_markup: {
           inline_keyboard: [[
