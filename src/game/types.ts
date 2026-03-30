@@ -67,6 +67,15 @@ export interface GameState {
   turnStartedAt?: number;  // timestamp when current turn started
   // Auto-pass tracking: playerId → count of consecutive auto-passes since last real move
   autoPassCounts?: Record<string, number>;
+  // Pending Telegram reminder (offline fallback)
+  pendingReminder?: {
+    playerId: string;
+    reminderAt: number;
+    turnStartedAt: number;
+    minutesLeft: number;
+    gameName: string;
+    turnDeadline: number;
+  };
 }
 
 export interface LeaderboardEntry {

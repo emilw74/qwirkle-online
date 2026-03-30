@@ -94,6 +94,7 @@ export async function catchUpExpiredTurns(roomCode: string, state: GameState): P
     console.log('[catchUp] room:', roomCode, '| iterations:', iterations,
       '| phase:', current.phase, '| currentPlayer:', current.players[current.currentPlayerIndex]?.nickname);
     await set(ref(db, `rooms/${roomCode}`), stripUndefined(current));
+    writePendingReminder(roomCode, current);
   }
 
   return current;
@@ -121,6 +122,7 @@ export async function executePendingAITurns(roomCode: string, state: GameState):
 
   if (current !== state) {
     await set(ref(db, `rooms/${roomCode}`), stripUndefined(current));
+    writePendingReminder(roomCode, current);
   }
 
   return current;
@@ -237,6 +239,7 @@ export async function placeTiles(
   const updatedState = applyMove(gameState, placedTiles, playerId);
 
   await set(ref(db, `rooms/${roomCode}`), stripUndefined(updatedState));
+  writePendingReminder(roomCode, updatedState);
 
   if (updatedState.phase === 'finished') {
     console.log('[placeTiles] Game finished, saving history & leaderboard for room:', roomCode);
@@ -275,6 +278,7 @@ export async function swapPlayerTiles(
   const updatedState = swapTiles(gameState, tiles, playerId);
 
   await set(ref(db, `rooms/${roomCode}`), stripUndefined(updatedState));
+  writePendingReminder(roomCode, updatedState);
   return updatedState;
 }
 
@@ -295,6 +299,7 @@ export async function passPlayerTurn(
   }
 
   await set(ref(db, `rooms/${roomCode}`), stripUndefined(updatedState));
+  writePendingReminder(roomCode, updatedState);
 
   if (updatedState.phase === 'finished') {
     console.log('[passPlayerTurn] Game finished, saving history & leaderboard for room:', roomCode);
@@ -962,21 +967,100 @@ export async function isUserBanned(uid: string): Promise<boolean> {
 // --- Telegram integration ---
 
 /** Fire-and-forget: notify next player via Telegram (Netlify Function) */
-export function notifyTurnViaTelegram(playerId: string, roomCode: string, gameName: string): void {
+export function notifyTurnViaTelegram(playerId: string, roomCode: string, gameName: string, turnDeadline?: number): void {
   fetch('/api/notify-turn', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ playerId, roomCode, gameName, type: 'turn' }),
+    body: JSON.stringify({ playerId, roomCode, gameName, type: 'turn', turnDeadline }),
   }).catch(() => { /* silent — notifications are best-effort */ });
 }
 
 /** Fire-and-forget: send turn deadline reminder via Telegram */
-export function notifyTurnReminderViaTelegram(playerId: string, roomCode: string, gameName: string, minutesLeft: number): void {
+export function notifyTurnReminderViaTelegram(playerId: string, roomCode: string, gameName: string, minutesLeft: number, turnDeadline?: number): void {
   fetch('/api/notify-turn', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ playerId, roomCode, gameName, type: 'reminder', minutesLeft }),
+    body: JSON.stringify({ playerId, roomCode, gameName, type: 'reminder', minutesLeft, turnDeadline }),
   }).catch(() => { /* silent */ });
+}
+
+// --- Pending reminder (offline fallback) ---
+
+interface PendingReminder {
+  playerId: string;
+  reminderAt: number;     // timestamp when reminder should fire
+  turnStartedAt: number;  // to match against current turn
+  minutesLeft: number;
+  gameName: string;
+  turnDeadline: number;   // absolute deadline timestamp
+}
+
+/** Compute reminder thresholds and write pendingReminder to room in Firebase */
+export function writePendingReminder(roomCode: string, state: GameState): void {
+  if (state.phase !== 'playing' || !state.turnTimeLimitMs || !state.turnStartedAt) {
+    // Clear any stale reminder
+    set(ref(db, `rooms/${roomCode}/pendingReminder`), null).catch(() => {});
+    return;
+  }
+  const currentPlayer = state.players[state.currentPlayerIndex];
+  if (!currentPlayer || currentPlayer.isAI) {
+    set(ref(db, `rooms/${roomCode}/pendingReminder`), null).catch(() => {});
+    return;
+  }
+
+  const limitMs = state.turnTimeLimitMs;
+  let reminderBeforeMs: number;
+  let minutesLabel: number;
+  if (limitMs >= 60 * 60_000) {
+    reminderBeforeMs = 30 * 60_000;
+    minutesLabel = 30;
+  } else if (limitMs >= 10 * 60_000) {
+    reminderBeforeMs = 5 * 60_000;
+    minutesLabel = 5;
+  } else {
+    // No reminder for < 10min
+    set(ref(db, `rooms/${roomCode}/pendingReminder`), null).catch(() => {});
+    return;
+  }
+
+  const turnDeadline = state.turnStartedAt + limitMs;
+  const reminderAt = turnDeadline - reminderBeforeMs;
+  const gameName = state.players.map(p => p.nickname).join(' vs ');
+
+  const pending: PendingReminder = {
+    playerId: currentPlayer.id,
+    reminderAt,
+    turnStartedAt: state.turnStartedAt,
+    minutesLeft: minutesLabel,
+    gameName,
+    turnDeadline,
+  };
+
+  set(ref(db, `rooms/${roomCode}/pendingReminder`), pending).catch(() => {});
+}
+
+/** Clear pending reminder */
+export function clearPendingReminder(roomCode: string): void {
+  set(ref(db, `rooms/${roomCode}/pendingReminder`), null).catch(() => {});
+}
+
+/** Check for overdue pending reminder and send it (called on game open / subscribe) */
+export function checkAndSendPendingReminder(roomCode: string, state: GameState): void {
+  if (!state.pendingReminder) return;
+  const pr = state.pendingReminder as PendingReminder;
+  // Only send if this reminder matches the current turn and time has passed
+  if (pr.turnStartedAt !== state.turnStartedAt) {
+    // Stale reminder from a previous turn, clear it
+    clearPendingReminder(roomCode);
+    return;
+  }
+  const now = Date.now();
+  if (now >= pr.reminderAt) {
+    // Overdue — fire it and clear
+    notifyTurnReminderViaTelegram(pr.playerId, roomCode, pr.gameName, pr.minutesLeft, pr.turnDeadline);
+    clearPendingReminder(roomCode);
+  }
+  // If not yet due, the setTimeout in Game.tsx will handle it
 }
 
 export interface TelegramSettings {

@@ -10,6 +10,7 @@ import {
   subscribeToRoom, ensureGameFinalized, catchUpExpiredTurns,
   notifyTurnViaTelegram, notifyTurnReminderViaTelegram,
   getTelegramSettings, setGameTelegramMute,
+  checkAndSendPendingReminder, clearPendingReminder,
 } from '../firebase/gameService';
 import { Tile, PlacedTile, Position, GameState, getLastMoveLabel } from '../game/types';
 import { validateMove, boardFromRecord, getScoringLinePositions } from '../game/engine';
@@ -86,7 +87,8 @@ export function Game({ onNavigate }: GameProps) {
           const next = aiState.players[aiState.currentPlayerIndex];
           if (next && !next.isAI) {
             const gameName = aiState.players.map(p => p.nickname).join(' vs ');
-            notifyTurnViaTelegram(next.id, aiState.roomCode, gameName);
+            const td = (aiState.turnStartedAt && aiState.turnTimeLimitMs) ? aiState.turnStartedAt + aiState.turnTimeLimitMs : undefined;
+            notifyTurnViaTelegram(next.id, aiState.roomCode, gameName, td);
           }
         }
       } catch (e: any) {
@@ -148,6 +150,17 @@ export function Game({ onNavigate }: GameProps) {
     }
   }, [gameState?.currentPlayerIndex, gameState?.turnStartedAt, gameState?.phase, roomCode]);
 
+  // Check for overdue pending reminders (offline fallback) whenever game state changes
+  const pendingCheckedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!gameState || !roomCode || gameState.phase !== 'playing') return;
+    if (!gameState.pendingReminder) return;
+    const checkKey = `${roomCode}:${gameState.pendingReminder.turnStartedAt}`;
+    if (pendingCheckedRef.current === checkKey) return;
+    pendingCheckedRef.current = checkKey;
+    checkAndSendPendingReminder(roomCode, gameState);
+  }, [gameState?.pendingReminder, gameState?.turnStartedAt, roomCode]);
+
   // Telegram reminder: notify current player when their turn deadline approaches
   const reminderSentRef = useRef<string | null>(null); // tracks "roomCode:turnStartedAt" to avoid duplicates
   useEffect(() => {
@@ -177,6 +190,7 @@ export function Game({ onNavigate }: GameProps) {
     const now = Date.now();
     const elapsed = now - gameState.turnStartedAt;
     const deadline = gameState.turnTimeLimitMs;
+    const turnDeadlineTs = gameState.turnStartedAt + limitMs;
     const reminderAt = deadline - reminderBeforeMs; // ms from turn start when reminder fires
     const msUntilReminder = reminderAt - elapsed;
 
@@ -188,7 +202,8 @@ export function Game({ onNavigate }: GameProps) {
     const timer = setTimeout(() => {
       reminderSentRef.current = turnKey;
       const gameName = gameState.players.map(p => p.nickname).join(' vs ');
-      notifyTurnReminderViaTelegram(currentPlayer.id, roomCode, gameName, minutesLabel);
+      notifyTurnReminderViaTelegram(currentPlayer.id, roomCode, gameName, minutesLabel, turnDeadlineTs);
+      clearPendingReminder(roomCode);
     }, msUntilReminder);
 
     return () => clearTimeout(timer);
@@ -316,7 +331,8 @@ export function Game({ onNavigate }: GameProps) {
     const next = state.players[state.currentPlayerIndex];
     if (!next || next.isAI) return; // AI will play, notification deferred
     const gameName = state.players.map(p => p.nickname).join(' vs ');
-    notifyTurnViaTelegram(next.id, state.roomCode, gameName);
+    const td = (state.turnStartedAt && state.turnTimeLimitMs) ? state.turnStartedAt + state.turnTimeLimitMs : undefined;
+    notifyTurnViaTelegram(next.id, state.roomCode, gameName, td);
   };
 
   const handleConfirmMove = async () => {

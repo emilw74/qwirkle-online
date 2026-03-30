@@ -13,7 +13,7 @@ export default async (req) => {
   }
 
   try {
-    const { playerId, roomCode, gameName, type = 'turn', minutesLeft } = await req.json();
+    const { playerId, roomCode, gameName, type = 'turn', minutesLeft, turnDeadline } = await req.json();
 
     if (!playerId || !roomCode) {
       return new Response(JSON.stringify({ error: "Missing playerId or roomCode" }), {
@@ -44,12 +44,27 @@ export default async (req) => {
     const displayName = gameName || "Qwirkle";
     const siteUrl = "https://qwirkle.ewakon.pl";
 
+    // Format deadline as HH:MM CET/CEST
+    let deadlineStr = '';
+    if (turnDeadline) {
+      try {
+        const d = new Date(turnDeadline);
+        const cetStr = d.toLocaleString('pl-PL', {
+          timeZone: 'Europe/Warsaw',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false,
+        });
+        deadlineStr = `\n⏳ Deadline: ${cetStr} CET`;
+      } catch (_) { /* ignore formatting errors */ }
+    }
+
     // Build message based on type
     let text;
     if (type === 'reminder') {
-      text = `⏰ <b>Pozostało ${minutesLeft} min!</b> / <b>${minutesLeft} min left!</b>\n${displayName}`;
+      text = `⏰ <b>Pozostało ${minutesLeft} min!</b> / <b>${minutesLeft} min left!</b>\n${displayName}${deadlineStr}`;
     } else {
-      text = `🎲 <b>Twój ruch!</b> / <b>Your turn!</b>\n${displayName}`;
+      text = `🎲 <b>Twój ruch!</b> / <b>Your turn!</b>\n${displayName}${deadlineStr}`;
     }
 
     // Send Telegram message
