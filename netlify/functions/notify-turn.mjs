@@ -84,7 +84,7 @@ export default async (req) => {
     });
 
     const tgResult = await tgRes.json();
-    return new Response(JSON.stringify({ sent: tgResult.ok }), {
+    return new Response(JSON.stringify({ sent: tgResult.ok, debug: tgResult.ok ? undefined : tgResult }), {
       status: 200,
       headers: { "Content-Type": "application/json" },
     });
