@@ -40,8 +40,13 @@ export function ScoreBoard({ players, currentPlayerIndex, myPlayerId, bagSize, t
   const isUrgent = remainingMs !== null && remainingMs < 60_000; // less than 1 min
   const isWarning = remainingMs !== null && remainingMs < 300_000 && !isUrgent; // less than 5 min
 
+  const is4Players = players.length >= 4;
+
   return (
-    <div className="flex items-center gap-2 w-full">
+    <div className={cn(
+      'w-full gap-1.5',
+      is4Players ? 'grid grid-cols-2' : 'flex items-center gap-2',
+    )}>
       {players.map((player, idx) => {
         const isCurrentTurn = idx === currentPlayerIndex;
         const isMe = player.id === myPlayerId;
@@ -50,7 +55,8 @@ export function ScoreBoard({ players, currentPlayerIndex, myPlayerId, bagSize, t
           <div
             key={player.id}
             className={cn(
-              'flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs transition-all flex-1 min-w-0',
+              'flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs transition-all min-w-0',
+              !is4Players && 'flex-1',
               isCurrentTurn && 'bg-primary/10 border border-primary/30',
               !isCurrentTurn && 'bg-card border border-border/50',
             )}
@@ -117,7 +123,10 @@ export function ScoreBoard({ players, currentPlayerIndex, myPlayerId, bagSize, t
         );
       })}
 
-      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground flex-shrink-0 tabular-nums">
+      <span className={cn(
+        'text-[10px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground flex-shrink-0 tabular-nums',
+        is4Players && 'col-span-2 justify-self-center',
+      )}>
         {bagSize}
       </span>
     </div>
