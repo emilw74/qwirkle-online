@@ -60,10 +60,10 @@ function AppContent({ profile }: { profile: UserProfile }) {
   }, []);
 
   const handleNavigateHome = () => {
-    leaveGame();
+    setPage('lobby');
     setLobbyInitialMode('mygames');
     setLobbyKey(k => k + 1);
-    setPage('lobby');
+    leaveGame();
     // Replace current entry (game) with mygames so back still works correctly
     history.replaceState({ page: 'lobby', lobbyMode: 'mygames' }, '');
   };
@@ -87,10 +87,10 @@ function AppContent({ profile }: { profile: UserProfile }) {
 
       // Game → lobby/mygames (refreshed)
       if (currentPage === 'game') {
-        leaveGame();
+        setPage('lobby');
         setLobbyInitialMode('mygames');
         setLobbyKey(k => k + 1);
-        setPage('lobby');
+        leaveGame();
         // Stack already has [menu, mygames] — no push needed
         setTimeout(() => { isPopstateNav.current = false; }, 50);
         return;
