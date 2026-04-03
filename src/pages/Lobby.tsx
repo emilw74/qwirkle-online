@@ -881,7 +881,7 @@ export function Lobby({ onNavigate, initialMode = 'menu', onModeChange, isSuperU
                 <div>
                   <label className="block text-sm font-medium mb-1.5">{t('maxPlayers')}</label>
                   <div className="flex gap-2">
-                    {[2, 3].map(n => (
+                    {[2, 3, 4].map(n => (
                       <button
                         key={n}
                         onClick={() => setMaxPlayers(n)}
