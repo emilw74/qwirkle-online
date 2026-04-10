@@ -34,13 +34,19 @@ function AppContent({ profile }: { profile: UserProfile }) {
     setAuth(profile.uid, profile.nickname, profile.photoURL);
   }, [profile.uid, profile.nickname, profile.photoURL]);
 
-  // Initialize dark mode
+  // Initialize dark mode & listen for OS theme changes
   useEffect(() => {
     if (isDarkMode) {
       document.documentElement.classList.add('dark');
     } else {
       document.documentElement.classList.remove('dark');
     }
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    const handler = (e: MediaQueryListEvent) => {
+      if (e.matches !== isDarkMode) toggleDarkMode();
+    };
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
   }, []);
 
   const [rulesScrollTarget, setRulesScrollTarget] = useState<RulesScrollTarget>(undefined);
