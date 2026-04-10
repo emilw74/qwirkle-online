@@ -2,7 +2,7 @@ import React from 'react';
 import { Tile, TileColor, TileShape } from '../game/types';
 import { cn } from '../utils/cn';
 
-const COLOR_MAP: Record<TileColor, string> = {
+const COLOR_MAP_LIGHT: Record<TileColor, string> = {
   red: '#e63946',
   orange: '#f77f00',
   yellow: '#fcbf49',
@@ -10,6 +10,33 @@ const COLOR_MAP: Record<TileColor, string> = {
   blue: '#3a7bd5',
   purple: '#7b2cbf',
 };
+
+// Dark mode: orange shifted to warm amber/gold for better contrast vs red
+const COLOR_MAP_DARK: Record<TileColor, string> = {
+  red: '#e63946',
+  orange: '#ffb347',
+  yellow: '#fcbf49',
+  green: '#2db84d',
+  blue: '#3a7bd5',
+  purple: '#7b2cbf',
+};
+
+function useColorMap(): Record<TileColor, string> {
+  const [isDark, setIsDark] = React.useState(() =>
+    typeof document !== 'undefined' && document.documentElement.classList.contains('dark')
+  );
+  React.useEffect(() => {
+    const observer = new MutationObserver(() => {
+      setIsDark(document.documentElement.classList.contains('dark'));
+    });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    return () => observer.disconnect();
+  }, []);
+  return isDark ? COLOR_MAP_DARK : COLOR_MAP_LIGHT;
+}
+
+// Keep static export for non-component code (Board.tsx scoring ring etc.)
+const COLOR_MAP = COLOR_MAP_LIGHT;
 
 const COLOR_BG_MAP: Record<TileColor, string> = {
   red: 'bg-red-500/10 dark:bg-red-500/20',
@@ -94,7 +121,8 @@ interface TileViewProps {
 export function TileView({
   tile, size = 48, selected, onClick, disabled, className, showShadow = true, style,
 }: TileViewProps) {
-  const color = COLOR_MAP[tile.color];
+  const colorMap = useColorMap();
+  const color = colorMap[tile.color];
 
   return (
     <div
