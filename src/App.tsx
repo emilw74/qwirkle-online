@@ -34,6 +34,11 @@ function AppContent({ profile }: { profile: UserProfile }) {
     setAuth(profile.uid, profile.nickname, profile.photoURL);
   }, [profile.uid, profile.nickname, profile.photoURL]);
 
+  // Track OS dark mode
+  const [systemDark, setSystemDark] = useState(() =>
+    window.matchMedia('(prefers-color-scheme: dark)').matches
+  );
+
   // Initialize dark mode & listen for OS theme changes
   useEffect(() => {
     if (isDarkMode) {
@@ -41,10 +46,17 @@ function AppContent({ profile }: { profile: UserProfile }) {
     } else {
       document.documentElement.classList.remove('dark');
     }
+  }, [isDarkMode]);
+
+  // When OS switches to dark → force dark mode on; when OS switches to light → allow manual control
+  useEffect(() => {
     const mq = window.matchMedia('(prefers-color-scheme: dark)');
     const handler = (e: MediaQueryListEvent) => {
-      if (e.matches !== isDarkMode) toggleDarkMode();
+      setSystemDark(e.matches);
+      if (e.matches && !isDarkMode) toggleDarkMode();
     };
+    // On mount: force dark if system is dark
+    if (mq.matches && !isDarkMode) toggleDarkMode();
     mq.addEventListener('change', handler);
     return () => mq.removeEventListener('change', handler);
   }, []);
@@ -237,13 +249,15 @@ function AppContent({ profile }: { profile: UserProfile }) {
               </button>
             )}
             <button
-              onClick={toggleDarkMode}
+              onClick={systemDark ? undefined : toggleDarkMode}
               className={cn(
-                'rounded-lg hover:bg-muted transition-colors',
+                'rounded-lg transition-colors',
                 isGame ? 'p-1.5' : 'p-2',
+                systemDark ? 'opacity-40 cursor-not-allowed' : 'hover:bg-muted cursor-pointer',
               )}
               aria-label={isDarkMode ? t('lightMode') : t('darkMode')}
               data-testid="theme-toggle"
+              disabled={systemDark}
             >
               {isDarkMode ? <Sun size={isGame ? 16 : 18} /> : <Moon size={isGame ? 16 : 18} />}
             </button>
