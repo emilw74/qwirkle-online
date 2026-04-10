@@ -180,7 +180,7 @@ export function EmptyCell({ size = 48, onClick, isValid, className }: EmptyTileP
         'rounded-lg border-2 border-dashed flex items-center justify-center transition-all duration-150',
         isValid
           ? 'border-accent/50 bg-accent/10 cursor-pointer hover:bg-accent/20 hover:border-accent'
-          : 'border-border/60 dark:border-border/30 bg-muted/20',
+          : 'border-border dark:border-border/30 bg-muted/30 dark:bg-muted/20',
         onClick && 'cursor-pointer',
         className,
       )}
