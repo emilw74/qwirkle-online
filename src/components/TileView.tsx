@@ -22,15 +22,28 @@ const COLOR_MAP_DARK: Record<TileColor, string> = {
 };
 
 function useColorMap(): Record<TileColor, string> {
-  const [isDark, setIsDark] = React.useState(() =>
-    typeof document !== 'undefined' && document.documentElement.classList.contains('dark')
-  );
+  const [isDark, setIsDark] = React.useState(() => {
+    if (typeof document === 'undefined') return false;
+    return document.documentElement.classList.contains('dark')
+      || window.matchMedia('(prefers-color-scheme: dark)').matches;
+  });
   React.useEffect(() => {
-    const observer = new MutationObserver(() => {
-      setIsDark(document.documentElement.classList.contains('dark'));
-    });
+    const update = () => {
+      setIsDark(
+        document.documentElement.classList.contains('dark')
+        || window.matchMedia('(prefers-color-scheme: dark)').matches
+      );
+    };
+    // Listen for in-app toggle (class change)
+    const observer = new MutationObserver(update);
     observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
-    return () => observer.disconnect();
+    // Listen for OS theme change
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    mq.addEventListener('change', update);
+    return () => {
+      observer.disconnect();
+      mq.removeEventListener('change', update);
+    };
   }, []);
   return isDark ? COLOR_MAP_DARK : COLOR_MAP_LIGHT;
 }
