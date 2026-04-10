@@ -11,14 +11,14 @@ const COLOR_MAP_LIGHT: Record<TileColor, string> = {
   purple: '#7b2cbf',
 };
 
-// Dark mode: orange shifted to warm amber/gold for better contrast vs red
+// Dark mode: brighter, more saturated & spaced apart for max contrast on dark bg
 const COLOR_MAP_DARK: Record<TileColor, string> = {
-  red: '#e63946',
-  orange: '#ffb347',
-  yellow: '#fcbf49',
-  green: '#2db84d',
-  blue: '#3a7bd5',
-  purple: '#7b2cbf',
+  red: '#ff4757',      // bright cherry red
+  orange: '#ff8c42',   // warm tangerine (clearly between red & yellow)
+  yellow: '#ffe156',   // bright lemon (pushed more green-yellow)
+  green: '#2ecc71',    // vivid emerald
+  blue: '#5b9bff',     // bright cornflower
+  purple: '#b44dff',   // bright violet
 };
 
 function useColorMap(): Record<TileColor, string> {
