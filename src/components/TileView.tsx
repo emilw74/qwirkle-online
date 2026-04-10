@@ -177,10 +177,10 @@ export function EmptyCell({ size = 48, onClick, isValid, className }: EmptyTileP
     <div
       onClick={onClick}
       className={cn(
-        'rounded-lg border-2 border-dashed flex items-center justify-center transition-all duration-150',
+        'rounded-lg flex items-center justify-center transition-all duration-150',
         isValid
-          ? 'border-accent/50 bg-accent/10 cursor-pointer hover:bg-accent/20 hover:border-accent'
-          : 'border-border dark:border-border/30 bg-muted/30 dark:bg-muted/20',
+          ? 'border-2 border-dashed border-accent/50 bg-accent/10 cursor-pointer hover:bg-accent/20 hover:border-accent'
+          : '',
         onClick && 'cursor-pointer',
         className,
       )}
