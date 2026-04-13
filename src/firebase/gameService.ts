@@ -95,6 +95,17 @@ export async function catchUpExpiredTurns(roomCode: string, state: GameState): P
       '| phase:', current.phase, '| currentPlayer:', current.players[current.currentPlayerIndex]?.nickname);
     await set(ref(db, `rooms/${roomCode}`), stripUndefined(current));
     writePendingReminder(roomCode, current);
+
+    // Notify the next player via Telegram after catch-up
+    if (current.phase === 'playing') {
+      const next = current.players[current.currentPlayerIndex];
+      if (next && !next.isAI) {
+        const gameName = current.players.map(p => p.nickname).join(' vs ');
+        const td = (current.turnStartedAt && current.turnTimeLimitMs)
+          ? current.turnStartedAt + current.turnTimeLimitMs : undefined;
+        notifyTurnViaTelegram(next.id, roomCode, gameName, td);
+      }
+    }
   }
 
   return current;
