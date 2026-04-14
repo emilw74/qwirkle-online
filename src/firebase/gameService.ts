@@ -979,20 +979,28 @@ export async function isUserBanned(uid: string): Promise<boolean> {
 
 /** Fire-and-forget: notify next player via Telegram (Netlify Function) */
 export function notifyTurnViaTelegram(playerId: string, roomCode: string, gameName: string, turnDeadline?: number): void {
+  console.log('[TG] notifyTurn →', { playerId, roomCode, gameName, type: 'turn', turnDeadline });
   fetch('/api/notify-turn', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ playerId, roomCode, gameName, type: 'turn', turnDeadline }),
-  }).catch(() => { /* silent — notifications are best-effort */ });
+  })
+    .then(r => r.json())
+    .then(j => console.log('[TG] notifyTurn response:', j))
+    .catch(e => console.error('[TG] notifyTurn error:', e));
 }
 
 /** Fire-and-forget: send turn deadline reminder via Telegram */
 export function notifyTurnReminderViaTelegram(playerId: string, roomCode: string, gameName: string, minutesLeft: number, turnDeadline?: number): void {
+  console.log('[TG] notifyReminder →', { playerId, roomCode, gameName, type: 'reminder', minutesLeft, turnDeadline });
   fetch('/api/notify-turn', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ playerId, roomCode, gameName, type: 'reminder', minutesLeft, turnDeadline }),
-  }).catch(() => { /* silent */ });
+  })
+    .then(r => r.json())
+    .then(j => console.log('[TG] notifyReminder response:', j))
+    .catch(e => console.error('[TG] notifyReminder error:', e));
 }
 
 // --- Pending reminder (offline fallback) ---
