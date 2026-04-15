@@ -289,19 +289,43 @@ export function Game({ onNavigate }: GameProps) {
     return { previewScore: score, scoringPositions: positions };
   }, [placedTilesThisTurn, board]);
 
-  // Get the last non-swap move's tile positions for highlighting
-  const lastMovePositions: Set<string> = new Set();
-  if (showLastMove && gameState.moves?.length) {
-    for (let i = gameState.moves.length - 1; i >= 0; i--) {
-      const m = gameState.moves[i];
-      if (!m.isSwap && m.tiles?.length > 0) {
-        for (const t of m.tiles) {
-          lastMovePositions.add(`${t.position.row},${t.position.col}`);
+  // Get last round data: positions + initials + legend for all players' most recent moves
+  const lastRoundData = useMemo(() => {
+    const positionInitials = new Map<string, string>();  // "row,col" → initial letter
+    const legend: { nickname: string; initial: string; label: string }[] = [];
+
+    if (!showLastMove || !gameState.moves?.length) return { positionInitials, legend };
+
+    const moves = gameState.moves;
+    const players = gameState.players;
+    const numPlayers = players.length;
+    const seenPlayers = new Set<string>();
+
+    // Walk backwards through moves, collect one move per player (= last round)
+    for (let i = moves.length - 1; i >= 0 && seenPlayers.size < numPlayers; i--) {
+      const m = moves[i];
+      if (seenPlayers.has(m.playerId)) break; // hit same player twice = previous round
+      seenPlayers.add(m.playerId);
+
+      const player = players.find(p => p.id === m.playerId);
+      const nick = player?.nickname || '?';
+      const initial = nick.charAt(0).toUpperCase();
+
+      if (m.isPass || m.isAutoPass) {
+        legend.unshift({ nickname: nick, initial, label: m.isAutoPass ? '⏰' : t('pass') });
+      } else if (m.isSwap) {
+        legend.unshift({ nickname: nick, initial, label: t('swappedTiles') });
+      } else if (m.tiles?.length > 0) {
+        for (const tile of m.tiles) {
+          positionInitials.set(`${tile.position.row},${tile.position.col}`, initial);
         }
-        break;
+        const qwirkle = m.score >= 12 ? ' 🌟' : '';
+        legend.unshift({ nickname: nick, initial, label: `+${m.score}${qwirkle}` });
       }
     }
-  }
+
+    return { positionInitials, legend };
+  }, [showLastMove, gameState?.moves?.length, gameState?.players, t]);
 
   const handleToggleLastMove = () => setShowLastMove(prev => !prev);
 
@@ -517,7 +541,8 @@ export function Game({ onNavigate }: GameProps) {
           placedThisTurn={placedTilesThisTurn}
           isMyTurn={isMyTurn}
           myHand={myHand.filter(t => !placedIds.has(t.id))}
-          highlightedPositions={lastMovePositions}
+          highlightedPositions={lastRoundData.positionInitials}
+          lastRoundLegend={lastRoundData.legend}
           previewScore={previewScore}
           scoringPositions={scoringPositions}
           tgConnected={tgConnected}

@@ -23,7 +23,8 @@ interface BoardProps {
   placedThisTurn: PlacedTile[];
   isMyTurn: boolean;
   myHand: Tile[];
-  highlightedPositions?: Set<string>;
+  highlightedPositions?: Map<string, string>;  // "row,col" → initial letter
+  lastRoundLegend?: { nickname: string; initial: string; label: string }[];
   previewScore?: number;
   scoringPositions?: Set<string>;
   tgConnected?: boolean;
@@ -32,7 +33,7 @@ interface BoardProps {
   tgMuteTitle?: string;
 }
 
-export function Board({ board, onCellClick, selectedTile, placedThisTurn, isMyTurn, myHand, highlightedPositions, previewScore, scoringPositions, tgConnected, tgMuted, onToggleTgMute, tgMuteTitle }: BoardProps) {
+export function Board({ board, onCellClick, selectedTile, placedThisTurn, isMyTurn, myHand, highlightedPositions, lastRoundLegend, previewScore, scoringPositions, tgConnected, tgMuted, onToggleTgMute, tgMuteTitle }: BoardProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(1);
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
@@ -239,6 +240,7 @@ export function Board({ board, onCellClick, selectedTile, placedThisTurn, isMyTu
               const isValid = validPositions.has(key);
               const isPlacedThisTurn = !!placedTile;
               const isHighlighted = highlightedPositions?.has(key);
+              const highlightInitial = highlightedPositions?.get(key);
               const isScoring = scoringPositions?.has(key);
               // Show score badge on the last placed tile
               const lastPlaced = placedThisTurn.length > 0 ? placedThisTurn[placedThisTurn.length - 1] : null;
@@ -264,6 +266,11 @@ export function Board({ board, onCellClick, selectedTile, placedThisTurn, isMyTu
                     {isLastPlaced && previewScore != null && previewScore > 0 && (
                       <div className="absolute -top-2.5 -right-2.5 z-10 min-w-[22px] h-[22px] px-1 rounded-full bg-primary text-primary-foreground font-bold text-[11px] flex items-center justify-center shadow-md tabular-nums pointer-events-none">
                         +{previewScore}
+                      </div>
+                    )}
+                    {highlightInitial && (
+                      <div className="absolute bottom-0 left-0.5 z-10 text-white font-bold pointer-events-none" style={{ fontSize: CELL_SIZE * 0.32, lineHeight: 1, textShadow: '0 0 3px rgba(0,0,0,0.8), 0 1px 2px rgba(0,0,0,0.6)' }}>
+                        {highlightInitial}
                       </div>
                     )}
                   </div>
@@ -297,6 +304,19 @@ export function Board({ board, onCellClick, selectedTile, placedThisTurn, isMyTu
           </div>
         </div>
       </div>
+
+      {/* Last round legend overlay */}
+      {lastRoundLegend && lastRoundLegend.length > 0 && (
+        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/70 dark:bg-black/80 backdrop-blur-sm text-white text-xs font-medium shadow-lg pointer-events-none">
+          {lastRoundLegend.map((entry, i) => (
+            <span key={i} className="flex items-center gap-1 whitespace-nowrap">
+              <span className="font-bold">{entry.initial}</span>
+              <span className="opacity-80">{entry.label}</span>
+              {i < lastRoundLegend.length - 1 && <span className="opacity-40 ml-1">·</span>}
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
