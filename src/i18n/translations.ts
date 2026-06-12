@@ -360,6 +360,18 @@ export const translations = {
     pl: 'Pas',
     en: 'Pass',
   },
+  passConfirmTitle: {
+    pl: 'Spasować?',
+    en: 'Pass your turn?',
+  },
+  passConfirmText: {
+    pl: 'Czy na pewno chcesz spasować i oddać kolejkę?',
+    en: 'Are you sure you want to pass and give up your turn?',
+  },
+  passConfirm: {
+    pl: 'Tak, pasuję',
+    en: 'Yes, pass',
+  },
   waitForTurn: {
     pl: 'Czekaj na swoją kolej...',
     en: 'Wait for your turn...',
