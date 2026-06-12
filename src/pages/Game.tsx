@@ -35,6 +35,7 @@ export function Game({ onNavigate }: GameProps) {
   const [error, setError] = useState('');
   const [lastMoveInfo, setLastMoveInfo] = useState('');
   const [showSwapDialog, setShowSwapDialog] = useState(false);
+  const [showPassDialog, setShowPassDialog] = useState(false);
   const [swapSelection, setSwapSelection] = useState<Set<string>>(new Set());
   const [showLastMove, setShowLastMove] = useState(false);
   const aiTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -403,12 +404,17 @@ export function Game({ onNavigate }: GameProps) {
     setIsLoading(false);
   };
 
-  const handlePass = async () => {
+  const handlePass = () => {
+    setShowPassDialog(true);
+  };
+
+  const handleConfirmPass = async () => {
     setIsLoading(true);
     setError('');
     try {
       const newState = await passPlayerTurn(roomCode, playerId);
       notifyNextPlayer(newState);
+      setShowPassDialog(false);
     } catch (e: any) {
       setError(e.message || t('error'));
     }
@@ -616,6 +622,32 @@ export function Game({ onNavigate }: GameProps) {
                 className="flex-1 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-all"
               >
                 {t('swapCount')} ({swapSelection.size})
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showPassDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-card rounded-2xl border border-border p-6 max-w-sm w-full shadow-xl space-y-4">
+            <h3 className="font-display font-bold text-lg">{t('passConfirmTitle')}</h3>
+            <p className="text-sm text-muted-foreground">{t('passConfirmText')}</p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowPassDialog(false)}
+                disabled={isLoading}
+                className="flex-1 py-2.5 rounded-lg border border-border text-sm hover:bg-muted transition-colors"
+              >
+                {t('cancel')}
+              </button>
+              <button
+                onClick={handleConfirmPass}
+                disabled={isLoading}
+                className="flex-1 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-all"
+                data-testid="confirm-pass"
+              >
+                {t('passConfirm')}
               </button>
             </div>
           </div>
