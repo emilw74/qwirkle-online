@@ -791,6 +791,124 @@ export async function adminDeleteAllFinishedGames(): Promise<{ deletedHistory: n
   return { deletedHistory, deletedSessions };
 }
 
+function isEmilTestBotGame(players: { nickname: string; score: number; isAI?: boolean }[]): boolean {
+  const humanPlayers = players.filter(p => !p.isAI);
+  if (humanPlayers.length !== 1) return false;
+
+  const human = humanPlayers[0];
+  return human.nickname.toLowerCase().startsWith('emil') && human.score < 100;
+}
+
+interface RecalculatedLeaderboardStats {
+  nickname: string;
+  score: number;
+  gamesPlayed: number;
+  gamesWon: number;
+  highestScore: number;
+  totalScore: number;
+  totalQwirkles: number;
+}
+
+function addLeaderboardGame(
+  statsByUid: Map<string, RecalculatedLeaderboardStats>,
+  uid: string,
+  nickname: string,
+  score: number,
+  isWinner: boolean,
+  qwirkles: number
+) {
+  const existing = statsByUid.get(uid);
+  if (existing) {
+    existing.nickname = nickname;
+    existing.score = score;
+    existing.gamesPlayed += 1;
+    existing.gamesWon += isWinner ? 1 : 0;
+    existing.highestScore = Math.max(existing.highestScore, score);
+    existing.totalScore += score;
+    existing.totalQwirkles += qwirkles;
+    return;
+  }
+
+  statsByUid.set(uid, {
+    nickname,
+    score,
+    gamesPlayed: 1,
+    gamesWon: isWinner ? 1 : 0,
+    highestScore: score,
+    totalScore: score,
+    totalQwirkles: qwirkles,
+  });
+}
+
+/** Rebuild leaderboard from finished player sessions, excluding deleted/test games. */
+export async function adminRecalculateLeaderboard(): Promise<{ players: number; games: number }> {
+  const statsByUid = new Map<string, RecalculatedLeaderboardStats>();
+  const counted = new Set<string>();
+
+  const profilesSnap = await get(ref(db, 'profiles'));
+  const profiles = profilesSnap.exists()
+    ? profilesSnap.val() as Record<string, { nickname?: string }>
+    : {};
+
+  const roomsSnap = await get(ref(db, 'rooms'));
+  const rooms = roomsSnap.exists() ? roomsSnap.val() as Record<string, GameState> : {};
+
+  const sessionsSnap = await get(ref(db, 'playerSessions'));
+  if (sessionsSnap.exists()) {
+    const allSessions = sessionsSnap.val() as Record<string, Record<string, PlayerSession>>;
+    for (const [uid, sessions] of Object.entries(allSessions)) {
+      for (const [roomCode, session] of Object.entries(sessions)) {
+        if (session.status !== 'finished' || session.deletedAt || !session.finalPlayers?.length) continue;
+
+        const room = rooms[roomCode];
+        const roomPlayer = room?.players?.find(p => p.id === uid);
+        const profileNick = profiles[uid]?.nickname;
+        const currentPlayer = session.finalPlayers.find(p => !p.isAI && p.nickname === roomPlayer?.nickname)
+          || session.finalPlayers.find(p => !p.isAI && p.nickname === profileNick);
+        if (!currentPlayer) continue;
+        if (isEmilTestBotGame(session.finalPlayers)) continue;
+
+        const key = `${uid}:${roomCode}`;
+        if (counted.has(key)) continue;
+        counted.add(key);
+
+        const qwirkles = room?.moves?.filter(m => m.playerId === uid && m.score >= 12).length || 0;
+        addLeaderboardGame(
+          statsByUid,
+          uid,
+          currentPlayer.nickname,
+          currentPlayer.score,
+          session.winner === currentPlayer.nickname,
+          qwirkles
+        );
+      }
+    }
+  }
+
+  const leaderboardUpdates: Record<string, LeaderboardEntry | null> = {};
+  const existingSnap = await get(ref(db, 'leaderboard'));
+  if (existingSnap.exists()) {
+    for (const uid of Object.keys(existingSnap.val() as Record<string, LeaderboardEntry>)) {
+      leaderboardUpdates[uid] = null;
+    }
+  }
+
+  for (const [uid, stats] of statsByUid.entries()) {
+    leaderboardUpdates[uid] = {
+      nickname: stats.nickname,
+      score: stats.score,
+      gamesPlayed: stats.gamesPlayed,
+      gamesWon: stats.gamesWon,
+      highestScore: stats.highestScore,
+      averageScore: Math.round(stats.totalScore / stats.gamesPlayed),
+      totalQwirkles: stats.totalQwirkles,
+    };
+  }
+
+  await update(ref(db, 'leaderboard'), leaderboardUpdates);
+  return { players: statsByUid.size, games: counted.size };
+}
+
 /** Get all registered players (unique profiles) */
 export interface AdminPlayerInfo {
   uid: string;

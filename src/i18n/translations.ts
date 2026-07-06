@@ -549,6 +549,14 @@ export const translations = {
     pl: 'Ranking został wyczyszczony.',
     en: 'Leaderboard has been cleared.',
   },
+  adminRecalculateLeaderboardBtn: {
+    pl: 'Przelicz ranking',
+    en: 'Recalculate leaderboard',
+  },
+  adminLeaderboardRecalculated: {
+    pl: 'Ranking przeliczony: {players} graczy, {games} gier.',
+    en: 'Leaderboard recalculated: {players} players, {games} games.',
+  },
   adminDeleteGames: {
     pl: 'Usuń zakończone gry',
     en: 'Delete Finished Games',
