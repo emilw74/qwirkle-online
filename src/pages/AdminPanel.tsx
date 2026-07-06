@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import {
   adminClearLeaderboard,
   adminDeleteAllFinishedGames,
+  adminRecalculateLeaderboard,
   adminGetAllPlayers,
   adminUpdatePlayerNick,
   adminBanUser,
@@ -11,7 +12,7 @@ import {
 } from '../firebase/gameService';
 import { useTranslation } from '../i18n/LanguageContext';
 import { cn } from '../utils/cn';
-import { ArrowLeft, Trash2, Trophy, Users, Pencil, AlertTriangle, Check, Loader2, Ban, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, Trash2, Trophy, Users, Pencil, AlertTriangle, Check, Loader2, Ban, ShieldCheck, RefreshCw } from 'lucide-react';
 
 interface AdminPanelProps {
   onBack: () => void;
@@ -79,6 +80,23 @@ export function AdminPanel({ onBack }: AdminPanelProps) {
     try {
       const result = await adminDeleteAllFinishedGames();
       showMessage('success', t('adminGamesDeleted').replace('{history}', String(result.deletedHistory)).replace('{sessions}', String(result.deletedSessions)));
+    } catch (e: any) {
+      showMessage('error', e.message || 'Error');
+    } finally {
+      setActionLoading(null);
+    }
+  }
+
+  async function handleRecalculateLeaderboard() {
+    setActionLoading('recalculate-leaderboard');
+    try {
+      const result = await adminRecalculateLeaderboard();
+      showMessage(
+        'success',
+        t('adminLeaderboardRecalculated')
+          .replace('{players}', String(result.players))
+          .replace('{games}', String(result.games))
+      );
     } catch (e: any) {
       showMessage('error', e.message || 'Error');
     } finally {
@@ -163,6 +181,14 @@ export function AdminPanel({ onBack }: AdminPanelProps) {
           <h3 className="font-semibold text-sm">{t('adminClearLeaderboard')}</h3>
         </div>
         <p className="text-xs text-muted-foreground">{t('adminClearLeaderboardDesc')}</p>
+        <button
+          onClick={handleRecalculateLeaderboard}
+          disabled={actionLoading !== null}
+          className="w-full py-2.5 rounded-lg border border-border text-sm font-medium hover:bg-muted/50 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+        >
+          {actionLoading === 'recalculate-leaderboard' ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
+          {t('adminRecalculateLeaderboardBtn')}
+        </button>
         <button
           onClick={() => setConfirmAction('leaderboard')}
           disabled={actionLoading !== null}
