@@ -390,13 +390,17 @@ export function subscribeToRoom(
 // --- Leaderboard ---
 
 export function computeRankScore(e: LeaderboardEntry): number {
-  if (e.gamesPlayed === 0) return 0;
-  const winRate = e.gamesWon / e.gamesPlayed;           // 0–1
-  const qwirkleRate = e.totalQwirkles / e.gamesPlayed;  // 0–~2
-  const activityBonus = Math.min(e.gamesPlayed, 20) * 0.5; // 0–10
-  return Math.round(
-    (winRate * 40) + (e.averageScore * 0.3) + (qwirkleRate * 20) + activityBonus
-  );
+  const gamesPlayed = Math.max(0, e.gamesPlayed || 0);
+  const gamesWon = Math.max(0, e.gamesWon || 0);
+  const averageScore = Math.max(0, e.averageScore || 0);
+  const totalQwirkles = Math.max(0, e.totalQwirkles || 0);
+
+  const winPoints = 60 * ((gamesWon + 1) / (gamesPlayed + 2));
+  const scorePoints = 20 * Math.min(1, averageScore / 200);
+  const qwirklePoints = gamesPlayed > 0 ? 10 * Math.min(1, totalQwirkles / gamesPlayed) : 0;
+  const experiencePoints = 10 * Math.min(1, gamesPlayed / 30);
+
+  return Math.round(winPoints + scorePoints + qwirklePoints + experiencePoints);
 }
 
 export async function getLeaderboard(): Promise<LeaderboardEntry[]> {
@@ -418,9 +422,9 @@ async function updateLeaderboard(gameState: GameState): Promise<void> {
     const snapshot = await get(playerRef);
 
     const isWinner = gameState.winner === player.nickname;
-    const hadQwirkle = gameState.moves.some(m =>
+    const qwirklesScored = gameState.moves.filter(m =>
       m.playerId === player.id && m.score >= 12
-    );
+    ).length;
 
     if (snapshot.exists()) {
       const existing = snapshot.val() as LeaderboardEntry;
@@ -432,7 +436,7 @@ async function updateLeaderboard(gameState: GameState): Promise<void> {
         averageScore: Math.round(
           ((existing.averageScore * existing.gamesPlayed) + player.score) / (existing.gamesPlayed + 1)
         ),
-        totalQwirkles: existing.totalQwirkles + (hadQwirkle ? 1 : 0),
+        totalQwirkles: existing.totalQwirkles + qwirklesScored,
       });
     } else {
       await set(playerRef, {
@@ -442,7 +446,7 @@ async function updateLeaderboard(gameState: GameState): Promise<void> {
         gamesWon: isWinner ? 1 : 0,
         highestScore: player.score,
         averageScore: player.score,
-        totalQwirkles: hadQwirkle ? 1 : 0,
+        totalQwirkles: qwirklesScored,
       });
     }
   }
