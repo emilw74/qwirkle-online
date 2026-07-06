@@ -507,7 +507,7 @@ export interface PlayerSession {
   finishedAt?: number;
   gameStartedAt?: number; // timestamp of first move
   finalBoard?: Record<string, Tile>;
-  finalPlayers?: { nickname: string; score: number; isAI?: boolean }[];
+  finalPlayers?: { id?: string; nickname: string; score: number; isAI?: boolean }[];
   winner?: string;
   hostId?: string; // uid of the game creator
   endReason?: 'completed' | 'allPassed';
@@ -560,6 +560,7 @@ export async function markSessionFinished(
     gameStartedAt: gameState.moves?.[0]?.timestamp || gameState.createdAt,
     finalBoard: gameState.board || {},
     finalPlayers: gameState.players.map(p => ({
+      id: p.id,
       nickname: p.nickname,
       score: p.score,
       isAI: p.isAI || false,
@@ -638,7 +639,7 @@ export async function getGamesForPlayer(
           finishedAt: Date.now(),
           gameStartedAt: state.moves?.[0]?.timestamp || state.createdAt,
           finalBoard: state.board,
-          finalPlayers: state.players.map(p => ({ nickname: p.nickname, score: p.score, isAI: p.isAI })),
+          finalPlayers: state.players.map(p => ({ id: p.id, nickname: p.nickname, score: p.score, isAI: p.isAI })),
           winner: state.winner || '',
           endReason: getEndReason(state),
         });
@@ -871,23 +872,45 @@ export async function adminRecalculateLeaderboard(): Promise<{ players: number; 
         const roomPlayer = room?.players?.find(p => p.id === uid);
         const profileNick = profiles[uid]?.nickname;
         const humanFinalPlayers = session.finalPlayers.filter(p => !p.isAI);
-        const currentPlayer = session.finalPlayers.find(p => !p.isAI && p.nickname === roomPlayer?.nickname)
-          || session.finalPlayers.find(p => !p.isAI && p.nickname === profileNick)
-          || (humanFinalPlayers.length === 1 ? humanFinalPlayers[0] : undefined);
+
+        // Identify which finalPlayers entry belongs to this uid. finalPlayers is
+        // keyed only by nickname in older sessions, which breaks after a player is
+        // renamed (the stored nickname no longer matches the profile/room nickname),
+        // silently dropping multiplayer games. Prefer the stored id (new sessions);
+        // then match the current nickname from the room or profile; then fall back to
+        // the room record itself, which is keyed by uid and survives nickname changes.
+        const currentPlayer =
+          session.finalPlayers.find(p => !p.isAI && p.id === uid)
+          || session.finalPlayers.find(p => !p.isAI && !!roomPlayer && p.nickname === roomPlayer.nickname)
+          || session.finalPlayers.find(p => !p.isAI && !!profileNick && p.nickname === profileNick)
+          || (humanFinalPlayers.length === 1 ? humanFinalPlayers[0] : undefined)
+          || (roomPlayer && !roomPlayer.isAI
+            ? { id: uid, nickname: roomPlayer.nickname, score: roomPlayer.score, isAI: false }
+            : undefined);
         if (!currentPlayer) continue;
-        if (!shouldCountLeaderboardGame(currentPlayer.nickname, currentPlayer.score, session.finalPlayers)) continue;
+
+        // Use the most current known nickname so renamed players stay identifiable.
+        const displayNick = profileNick || roomPlayer?.nickname || currentPlayer.nickname;
+        if (!shouldCountLeaderboardGame(displayNick, currentPlayer.score, session.finalPlayers)) continue;
 
         const key = `${uid}:${roomCode}`;
         if (counted.has(key)) continue;
         counted.add(key);
 
+        // The winner in Qwirkle is the highest scorer; derive it from scores rather
+        // than the stored winner string, which can hold a stale (pre-rename) nickname.
+        const maxScore = Math.max(...session.finalPlayers.map(p => p.score));
+        const isWinner = session.winner === currentPlayer.nickname
+          || session.winner === displayNick
+          || currentPlayer.score === maxScore;
+
         const qwirkles = room?.moves?.filter(m => m.playerId === uid && m.score >= 12).length || 0;
         addLeaderboardGame(
           statsByUid,
           uid,
-          currentPlayer.nickname,
+          displayNick,
           currentPlayer.score,
-          session.winner === currentPlayer.nickname,
+          isWinner,
           qwirkles
         );
       }
