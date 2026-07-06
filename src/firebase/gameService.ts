@@ -416,6 +416,7 @@ export async function getLeaderboard(): Promise<LeaderboardEntry[]> {
 async function updateLeaderboard(gameState: GameState): Promise<void> {
   for (const player of gameState.players) {
     if (player.isAI) continue;
+    if (!shouldCountLeaderboardGame(player.nickname, player.score, gameState.players)) continue;
 
     // Use player.id (uid) as key for leaderboard
     const playerRef = ref(db, `leaderboard/${player.id}`);
@@ -450,6 +451,20 @@ async function updateLeaderboard(gameState: GameState): Promise<void> {
       });
     }
   }
+}
+
+function isEmilPlayer(nickname: string): boolean {
+  return /^emil(?:\s|$)/i.test(nickname.trim());
+}
+
+function shouldCountLeaderboardGame(
+  nickname: string,
+  score: number,
+  players: { nickname: string; score: number; isAI?: boolean }[]
+): boolean {
+  const humanPlayers = players.filter(p => !p.isAI);
+  const isSoloHumanBotGame = humanPlayers.length === 1 && players.some(p => p.isAI);
+  return !(isEmilPlayer(nickname) && isSoloHumanBotGame && score < 100);
 }
 
 // --- Game History ---
@@ -832,7 +847,7 @@ function addLeaderboardGame(
   });
 }
 
-/** Rebuild leaderboard from finished, non-deleted player sessions. */
+/** Rebuild leaderboard from all finished player sessions. */
 export async function adminRecalculateLeaderboard(): Promise<{ players: number; games: number }> {
   const statsByUid = new Map<string, RecalculatedLeaderboardStats>();
   const counted = new Set<string>();
@@ -850,7 +865,7 @@ export async function adminRecalculateLeaderboard(): Promise<{ players: number; 
     const allSessions = sessionsSnap.val() as Record<string, Record<string, PlayerSession>>;
     for (const [uid, sessions] of Object.entries(allSessions)) {
       for (const [roomCode, session] of Object.entries(sessions)) {
-        if (session.status !== 'finished' || session.deletedAt || !session.finalPlayers?.length) continue;
+        if (session.status !== 'finished' || !session.finalPlayers?.length) continue;
 
         const room = rooms[roomCode];
         const roomPlayer = room?.players?.find(p => p.id === uid);
@@ -860,6 +875,7 @@ export async function adminRecalculateLeaderboard(): Promise<{ players: number; 
           || session.finalPlayers.find(p => !p.isAI && p.nickname === profileNick)
           || (humanFinalPlayers.length === 1 ? humanFinalPlayers[0] : undefined);
         if (!currentPlayer) continue;
+        if (!shouldCountLeaderboardGame(currentPlayer.nickname, currentPlayer.score, session.finalPlayers)) continue;
 
         const key = `${uid}:${roomCode}`;
         if (counted.has(key)) continue;
