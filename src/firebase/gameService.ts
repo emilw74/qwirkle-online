@@ -791,14 +791,6 @@ export async function adminDeleteAllFinishedGames(): Promise<{ deletedHistory: n
   return { deletedHistory, deletedSessions };
 }
 
-function isEmilTestBotGame(players: { nickname: string; score: number; isAI?: boolean }[]): boolean {
-  const humanPlayers = players.filter(p => !p.isAI);
-  if (humanPlayers.length !== 1) return false;
-
-  const human = humanPlayers[0];
-  return human.nickname.toLowerCase().startsWith('emil') && human.score < 100;
-}
-
 interface RecalculatedLeaderboardStats {
   nickname: string;
   score: number;
@@ -840,7 +832,7 @@ function addLeaderboardGame(
   });
 }
 
-/** Rebuild leaderboard from finished player sessions, excluding deleted/test games. */
+/** Rebuild leaderboard from finished, non-deleted player sessions. */
 export async function adminRecalculateLeaderboard(): Promise<{ players: number; games: number }> {
   const statsByUid = new Map<string, RecalculatedLeaderboardStats>();
   const counted = new Set<string>();
@@ -863,10 +855,11 @@ export async function adminRecalculateLeaderboard(): Promise<{ players: number; 
         const room = rooms[roomCode];
         const roomPlayer = room?.players?.find(p => p.id === uid);
         const profileNick = profiles[uid]?.nickname;
+        const humanFinalPlayers = session.finalPlayers.filter(p => !p.isAI);
         const currentPlayer = session.finalPlayers.find(p => !p.isAI && p.nickname === roomPlayer?.nickname)
-          || session.finalPlayers.find(p => !p.isAI && p.nickname === profileNick);
+          || session.finalPlayers.find(p => !p.isAI && p.nickname === profileNick)
+          || (humanFinalPlayers.length === 1 ? humanFinalPlayers[0] : undefined);
         if (!currentPlayer) continue;
-        if (isEmilTestBotGame(session.finalPlayers)) continue;
 
         const key = `${uid}:${roomCode}`;
         if (counted.has(key)) continue;
