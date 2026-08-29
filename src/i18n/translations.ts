@@ -677,13 +677,61 @@ export const translations = {
     pl: 'Powiadomienia wyłączone',
     en: 'Notifications off',
   },
-  telegramMuteGame: {
+  notifMuteGame: {
     pl: 'Wycisz tę grę',
     en: 'Mute this game',
   },
-  telegramUnmuteGame: {
+  notifUnmuteGame: {
     pl: 'Włącz powiadomienia',
     en: 'Unmute this game',
+  },
+  pushTitle: {
+    pl: 'Powiadomienia w przeglądarce',
+    en: 'Browser Notifications',
+  },
+  pushDesc: {
+    pl: 'Powiadomienia na ekranie telefonu, bez dodatkowej aplikacji',
+    en: 'Notifications on your phone screen, no extra app needed',
+  },
+  pushConnect: {
+    pl: 'Włącz powiadomienia',
+    en: 'Enable notifications',
+  },
+  pushEnabling: {
+    pl: 'Włączanie…',
+    en: 'Enabling…',
+  },
+  pushConnected: {
+    pl: 'To urządzenie połączone',
+    en: 'This device connected',
+  },
+  pushOtherDevice: {
+    pl: 'Połączone na innym urządzeniu',
+    en: 'Connected on another device',
+  },
+  pushDisconnect: {
+    pl: 'Odłącz',
+    en: 'Disconnect',
+  },
+  pushNotifOn: {
+    pl: 'Powiadomienia włączone',
+    en: 'Notifications on',
+  },
+  pushNotifOff: {
+    pl: 'Powiadomienia wyłączone',
+    en: 'Notifications off',
+  },
+  pushDenied: {
+    pl: 'Powiadomienia zablokowane w przeglądarce. Zmień to w ustawieniach witryny.',
+    en: 'Notifications are blocked in your browser. Change this in the site settings.',
+  },
+  pushUnsupported: {
+    pl: 'Ta przeglądarka nie obsługuje powiadomień. Na iPhonie dodaj najpierw aplikację do ekranu głównego.',
+    en: 'This browser does not support notifications. On iPhone, add the app to your home screen first.',
+  },
+  pushError: {
+    pl: 'Nie udało się włączyć powiadomień.',
+    en: 'Could not enable notifications.',
   },
 } as const;
 

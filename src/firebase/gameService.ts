@@ -96,14 +96,14 @@ export async function catchUpExpiredTurns(roomCode: string, state: GameState): P
     await set(ref(db, `rooms/${roomCode}`), stripUndefined(current));
     writePendingReminder(roomCode, current);
 
-    // Notify the next player via Telegram after catch-up
+    // Notify the next player after catch-up
     if (current.phase === 'playing') {
       const next = current.players[current.currentPlayerIndex];
       if (next && !next.isAI) {
         const gameName = current.players.map(p => p.nickname).join(' vs ');
         const td = (current.turnStartedAt && current.turnTimeLimitMs)
           ? current.turnStartedAt + current.turnTimeLimitMs : undefined;
-        notifyTurnViaTelegram(next.id, roomCode, gameName, td);
+        notifyTurn(next.id, roomCode, gameName, td);
       }
     }
   }
@@ -1129,32 +1129,32 @@ export async function isUserBanned(uid: string): Promise<boolean> {
   return snap.exists() && snap.val() === true;
 }
 
-// --- Telegram integration ---
+// --- Turn notifications (Telegram + Web Push) ---
 
-/** Fire-and-forget: notify next player via Telegram (Netlify Function) */
-export function notifyTurnViaTelegram(playerId: string, roomCode: string, gameName: string, turnDeadline?: number): void {
-  console.log('[TG] notifyTurn →', { playerId, roomCode, gameName, type: 'turn', turnDeadline });
+/** Fire-and-forget: notify next player on every channel they enabled (Netlify Function) */
+export function notifyTurn(playerId: string, roomCode: string, gameName: string, turnDeadline?: number): void {
+  console.log('[notify] turn →', { playerId, roomCode, gameName, type: 'turn', turnDeadline });
   fetch('/api/notify-turn', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ playerId, roomCode, gameName, type: 'turn', turnDeadline }),
   })
     .then(r => r.json())
-    .then(j => console.log('[TG] notifyTurn response:', j))
-    .catch(e => console.error('[TG] notifyTurn error:', e));
+    .then(j => console.log('[notify] turn response:', j))
+    .catch(e => console.error('[notify] turn error:', e));
 }
 
-/** Fire-and-forget: send turn deadline reminder via Telegram */
-export function notifyTurnReminderViaTelegram(playerId: string, roomCode: string, gameName: string, minutesLeft: number, turnDeadline?: number): void {
-  console.log('[TG] notifyReminder →', { playerId, roomCode, gameName, type: 'reminder', minutesLeft, turnDeadline });
+/** Fire-and-forget: send turn deadline reminder on every channel they enabled */
+export function notifyTurnReminder(playerId: string, roomCode: string, gameName: string, minutesLeft: number, turnDeadline?: number): void {
+  console.log('[notify] reminder →', { playerId, roomCode, gameName, type: 'reminder', minutesLeft, turnDeadline });
   fetch('/api/notify-turn', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ playerId, roomCode, gameName, type: 'reminder', minutesLeft, turnDeadline }),
   })
     .then(r => r.json())
-    .then(j => console.log('[TG] notifyReminder response:', j))
-    .catch(e => console.error('[TG] notifyReminder error:', e));
+    .then(j => console.log('[notify] reminder response:', j))
+    .catch(e => console.error('[notify] reminder error:', e));
 }
 
 // --- Pending reminder (offline fallback) ---
@@ -1230,7 +1230,7 @@ export function checkAndSendPendingReminder(roomCode: string, state: GameState):
   const now = Date.now();
   if (now >= pr.reminderAt) {
     // Overdue — fire it and clear
-    notifyTurnReminderViaTelegram(pr.playerId, roomCode, pr.gameName, pr.minutesLeft, pr.turnDeadline);
+    notifyTurnReminder(pr.playerId, roomCode, pr.gameName, pr.minutesLeft, pr.turnDeadline);
     clearPendingReminder(roomCode);
   }
   // If not yet due, the setTimeout in Game.tsx will handle it
@@ -1270,5 +1270,78 @@ export async function setGameTelegramMute(uid: string, roomCode: string, muted: 
     await set(ref(db, `profiles/${uid}/telegramMutedGames/${roomCode}`), true);
   } else {
     await set(ref(db, `profiles/${uid}/telegramMutedGames/${roomCode}`), null);
+  }
+}
+
+// --- Web Push integration ---
+
+export interface PushSettings {
+  /** True when at least one device is registered for this account. */
+  pushConnected?: boolean;
+  pushNotifications?: boolean;
+  pushMutedGames?: Record<string, boolean>;
+}
+
+export async function getPushSettings(uid: string): Promise<PushSettings> {
+  const snap = await get(ref(db, `profiles/${uid}`));
+  if (!snap.exists()) return {};
+  const p = snap.val();
+  return {
+    pushConnected: !!p.pushSubs && Object.keys(p.pushSubs).length > 0,
+    pushNotifications: p.pushNotifications,
+    pushMutedGames: p.pushMutedGames,
+  };
+}
+
+export async function setPushNotifications(uid: string, enabled: boolean): Promise<void> {
+  await update(ref(db, `profiles/${uid}`), { pushNotifications: enabled });
+}
+
+/** Forget every registered device for this account. */
+export async function disconnectPush(uid: string): Promise<void> {
+  await update(ref(db, `profiles/${uid}`), {
+    pushSubs: null,
+    pushNotifications: false,
+    pushMutedGames: null,
+  });
+}
+
+/**
+ * Store this device's push subscription.
+ *
+ * Written from the client because `profiles/**` only accepts authenticated
+ * writes — the Netlify function can read these entries but not create them.
+ * Deliberately does not touch `pushNotifications`, so refreshing a stored
+ * endpoint never re-enables a channel the player turned off.
+ */
+export async function savePushSubscription(
+  uid: string,
+  deviceId: string,
+  subscription: PushSubscriptionJSON,
+): Promise<void> {
+  await set(ref(db, `profiles/${uid}/pushSubs/${deviceId}`), {
+    endpoint: subscription.endpoint,
+    keys: {
+      p256dh: subscription.keys?.p256dh ?? null,
+      auth: subscription.keys?.auth ?? null,
+    },
+    createdAt: Date.now(),
+  });
+}
+
+/** Forget one device, and turn the channel off once no devices remain. */
+export async function removePushSubscription(uid: string, deviceId: string): Promise<void> {
+  await set(ref(db, `profiles/${uid}/pushSubs/${deviceId}`), null);
+  const snap = await get(ref(db, `profiles/${uid}/pushSubs`));
+  if (!snap.exists()) {
+    await update(ref(db, `profiles/${uid}`), { pushNotifications: false });
+  }
+}
+
+export async function setGamePushMute(uid: string, roomCode: string, muted: boolean): Promise<void> {
+  if (muted) {
+    await set(ref(db, `profiles/${uid}/pushMutedGames/${roomCode}`), true);
+  } else {
+    await set(ref(db, `profiles/${uid}/pushMutedGames/${roomCode}`), null);
   }
 }

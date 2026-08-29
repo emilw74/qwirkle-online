@@ -6,11 +6,16 @@ import {
   removePlayerSession,
   PlayerSession, PlayerGames,
   getTelegramSettings, setTelegramNotifications, disconnectTelegram, TelegramSettings,
+  getPushSettings, setPushNotifications, disconnectPush, PushSettings,
 } from '../firebase/gameService';
+import {
+  isPushSupported, getPushPermission, syncPushSubscription, subscribeToPush, unsubscribeFromPush,
+} from '../utils/push';
 import { cn } from '../utils/cn';
 import {
   Users, Bot, Play, Plus, LogIn, Trophy, Copy, Check,
   ArrowLeft, Gamepad2, ChevronRight, X, BookOpen, Info, Trash2, Clock, Shield, Send, Unlink, Bell, BellOff,
+  Smartphone,
 } from 'lucide-react';
 import { AILevel, GameState, Tile, getLastMoveLabel } from '../game/types';
 import { TileView } from '../components/TileView';
@@ -213,6 +218,49 @@ export function Lobby({ onNavigate, initialMode = 'menu', onModeChange, isSuperU
     if (!uid) return;
     getTelegramSettings(uid).then(setTgSettings);
   }, [uid]);
+
+  // Web Push settings — independent of Telegram
+  const [pushSettings, setPushSettings] = useState<PushSettings>({});
+  const [pushDeviceOn, setPushDeviceOn] = useState(false);
+  const [pushBusy, setPushBusy] = useState(false);
+  const [pushError, setPushError] = useState('');
+  useEffect(() => {
+    if (!uid) return;
+    getPushSettings(uid).then(setPushSettings);
+    syncPushSubscription(uid).then(setPushDeviceOn);
+    // Tell the player up front when the browser is blocking notifications,
+    // rather than letting them press the button and see nothing happen.
+    if (getPushPermission() === 'denied') setPushError(t('pushDenied'));
+  }, [uid]);
+
+  const handleEnablePush = async () => {
+    if (!uid) return;
+    setPushBusy(true);
+    setPushError('');
+    const result = await subscribeToPush(uid);
+    setPushBusy(false);
+    if (result.ok) {
+      setPushDeviceOn(true);
+      setPushSettings(await getPushSettings(uid));
+      return;
+    }
+    setPushError(
+      result.reason === 'denied' ? t('pushDenied')
+      : result.reason === 'unsupported' ? t('pushUnsupported')
+      : t('pushError'),
+    );
+  };
+
+  const handleDisconnectPush = async () => {
+    if (!uid) return;
+    setPushBusy(true);
+    await unsubscribeFromPush(uid);
+    await disconnectPush(uid);
+    setPushDeviceOn(false);
+    setPushSettings({});
+    setPushError('');
+    setPushBusy(false);
+  };
 
   // Auto-refresh: only when some game needs background processing (not all waiting on me)
   const [tick, setTick] = useState(0);
@@ -1149,6 +1197,70 @@ export function Lobby({ onNavigate, initialMode = 'menu', onModeChange, isSuperU
             <Send size={12} />
             {t('telegramConnect')}
           </a>
+        )}
+      </div>
+
+      {/* Web Push notifications — separate channel, registered on its own */}
+      <div className="rounded-xl bg-card border border-border/50 shadow-sm p-3">
+        <div className="flex items-center gap-2 mb-1">
+          <Smartphone size={14} className="text-violet-500" />
+          <span className="text-xs font-semibold">{t('pushTitle')}</span>
+        </div>
+        <p className="text-[10px] text-muted-foreground mb-2">{t('pushDesc')}</p>
+        {!isPushSupported() ? (
+          <p className="text-[10px] text-muted-foreground">{t('pushUnsupported')}</p>
+        ) : (pushDeviceOn || pushSettings.pushConnected) ? (
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-[10px] text-green-600 dark:text-green-400 font-medium flex items-center gap-1">
+              <Check size={10} /> {pushDeviceOn ? t('pushConnected') : t('pushOtherDevice')}
+            </span>
+            <button
+              onClick={async () => {
+                const on = !pushSettings.pushNotifications;
+                setPushSettings(s => ({ ...s, pushNotifications: on }));
+                if (uid) await setPushNotifications(uid, on);
+              }}
+              className={cn(
+                'ml-auto flex items-center gap-1 text-[10px] px-2 py-1 rounded-md border transition-colors',
+                pushSettings.pushNotifications
+                  ? 'border-green-500/30 bg-green-500/10 text-green-700 dark:text-green-400'
+                  : 'border-border/50 bg-muted/50 text-muted-foreground',
+              )}
+            >
+              {pushSettings.pushNotifications ? <Bell size={10} /> : <BellOff size={10} />}
+              {pushSettings.pushNotifications ? t('pushNotifOn') : t('pushNotifOff')}
+            </button>
+            {!pushDeviceOn && (
+              <button
+                onClick={handleEnablePush}
+                disabled={pushBusy}
+                className="flex items-center gap-1 text-[10px] px-2 py-1 rounded-md border border-violet-500/30 text-violet-600 dark:text-violet-400 hover:bg-violet-500/10 transition-colors disabled:opacity-50"
+              >
+                <Bell size={10} />
+                {pushBusy ? t('pushEnabling') : t('pushConnect')}
+              </button>
+            )}
+            <button
+              onClick={handleDisconnectPush}
+              disabled={pushBusy}
+              className="flex items-center gap-1 text-[10px] px-2 py-1 rounded-md border border-border/50 text-muted-foreground hover:text-destructive hover:border-destructive/30 transition-colors disabled:opacity-50"
+            >
+              <Unlink size={10} />
+              {t('pushDisconnect')}
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={handleEnablePush}
+            disabled={pushBusy}
+            className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-violet-500 text-white font-medium hover:bg-violet-600 transition-colors disabled:opacity-60"
+          >
+            <Bell size={12} />
+            {pushBusy ? t('pushEnabling') : t('pushConnect')}
+          </button>
+        )}
+        {pushError && (
+          <p className="text-[10px] text-destructive mt-1.5">{pushError}</p>
         )}
       </div>
 

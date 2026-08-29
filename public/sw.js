@@ -1,4 +1,4 @@
-const CACHE_NAME = 'qwirkle-v3';
+const CACHE_NAME = 'qwirkle-v4';
 const urlsToCache = [
   '/',
   '/index.html',
@@ -69,4 +69,44 @@ self.addEventListener('fetch', (event) => {
         .catch(() => caches.match(event.request).then((r) => r || caches.match('/index.html')))
     );
   }
+});
+
+// --- Web Push ---
+
+self.addEventListener('push', (event) => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch (_) {
+    data = { body: event.data ? event.data.text() : '' };
+  }
+
+  event.waitUntil(
+    self.registration.showNotification(data.title || '🎲 Qwirkle', {
+      body: data.body || '',
+      icon: '/icon-192.png',
+      badge: '/icon-192.png',
+      // One notification per room, so a reminder replaces the earlier
+      // "your turn" instead of stacking up on the lock screen.
+      tag: data.tag || 'qwirkle',
+      renotify: true,
+      vibrate: [200, 100, 200],
+      data: { url: data.url || '/' },
+    })
+  );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const target = (event.notification.data && event.notification.data.url) || '/';
+
+  // Focus an already-open tab when there is one, otherwise open the app.
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if ('focus' in client) return client.focus();
+      }
+      return self.clients.openWindow(target);
+    })
+  );
 });

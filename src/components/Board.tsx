@@ -27,13 +27,13 @@ interface BoardProps {
   lastRoundLegend?: { nickname: string; initial: string; label: string }[];
   previewScore?: number;
   scoringPositions?: Set<string>;
-  tgConnected?: boolean;
-  tgMuted?: boolean;
-  onToggleTgMute?: () => void;
-  tgMuteTitle?: string;
+  notifyConnected?: boolean;
+  notifyMuted?: boolean;
+  onToggleNotifyMute?: () => void;
+  notifyMuteTitle?: string;
 }
 
-export function Board({ board, onCellClick, selectedTile, placedThisTurn, isMyTurn, myHand, highlightedPositions, lastRoundLegend, previewScore, scoringPositions, tgConnected, tgMuted, onToggleTgMute, tgMuteTitle }: BoardProps) {
+export function Board({ board, onCellClick, selectedTile, placedThisTurn, isMyTurn, myHand, highlightedPositions, lastRoundLegend, previewScore, scoringPositions, notifyConnected, notifyMuted, onToggleNotifyMute, notifyMuteTitle }: BoardProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(1);
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
@@ -178,18 +178,18 @@ export function Board({ board, onCellClick, selectedTile, placedThisTurn, isMyTu
         >
           <Crosshair size={14} />
         </button>
-        {tgConnected && onToggleTgMute && (
+        {notifyConnected && onToggleNotifyMute && (
           <button
-            onClick={onToggleTgMute}
+            onClick={onToggleNotifyMute}
             className={cn(
               'p-1.5 rounded-md bg-card/90 border shadow-sm transition-colors mt-1',
-              tgMuted
+              notifyMuted
                 ? 'border-border/50 text-muted-foreground/40 hover:text-muted-foreground'
                 : 'border-blue-500/30 text-blue-500 hover:text-blue-600',
             )}
-            title={tgMuteTitle}
+            title={notifyMuteTitle}
           >
-            {tgMuted ? <BellOff size={14} /> : <Bell size={14} />}
+            {notifyMuted ? <BellOff size={14} /> : <Bell size={14} />}
           </button>
         )}
       </div>
