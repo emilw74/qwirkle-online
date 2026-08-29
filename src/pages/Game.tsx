@@ -8,8 +8,9 @@ import { TileView } from '../components/TileView';
 import {
   placeTiles, swapPlayerTiles, passPlayerTurn, executeAITurn,
   subscribeToRoom, ensureGameFinalized, catchUpExpiredTurns,
-  notifyTurnViaTelegram, notifyTurnReminderViaTelegram,
+  notifyTurn, notifyTurnReminder,
   getTelegramSettings, setGameTelegramMute,
+  getPushSettings, setGamePushMute,
   checkAndSendPendingReminder, clearPendingReminder,
 } from '../firebase/gameService';
 import { Tile, PlacedTile, Position, GameState, getLastMoveLabel } from '../game/types';
@@ -40,16 +41,24 @@ export function Game({ onNavigate }: GameProps) {
   const [showLastMove, setShowLastMove] = useState(false);
   const aiTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Telegram per-game mute
-  const [tgConnected, setTgConnected] = useState(false);
-  const [tgMuted, setTgMuted] = useState(false);
+  // Per-game mute — one control covering every notification channel in use
+  const [notifyChannels, setNotifyChannels] = useState({ telegram: false, push: false });
+  const [notifyMuted, setNotifyMuted] = useState(false);
   useEffect(() => {
     if (!playerId || !roomCode) return;
-    getTelegramSettings(playerId).then(s => {
-      setTgConnected(!!s.telegramChatId && !!s.telegramNotifications);
-      setTgMuted(!!s.telegramMutedGames?.[roomCode]);
+    Promise.all([getTelegramSettings(playerId), getPushSettings(playerId)]).then(([tg, push]) => {
+      const telegramOn = !!tg.telegramChatId && !!tg.telegramNotifications;
+      const pushOn = !!push.pushConnected && !!push.pushNotifications;
+      setNotifyChannels({ telegram: telegramOn, push: pushOn });
+      // Show as muted only when every channel actually in use is muted here.
+      const states = [
+        telegramOn ? !!tg.telegramMutedGames?.[roomCode] : null,
+        pushOn ? !!push.pushMutedGames?.[roomCode] : null,
+      ].filter((v): v is boolean => v !== null);
+      setNotifyMuted(states.length > 0 && states.every(Boolean));
     });
   }, [playerId, roomCode]);
+  const notifyConnected = notifyChannels.telegram || notifyChannels.push;
 
   // Subscribe to room
   useEffect(() => {
@@ -83,13 +92,13 @@ export function Game({ onNavigate }: GameProps) {
     aiTimeoutRef.current = setTimeout(async () => {
       try {
         const aiState = await executeAITurn(roomCode);
-        // After AI plays, if next player is human, notify via Telegram
+        // After AI plays, if next player is human, notify them
         if (aiState && aiState.phase === 'playing') {
           const next = aiState.players[aiState.currentPlayerIndex];
           if (next && !next.isAI) {
             const gameName = aiState.players.map(p => p.nickname).join(' vs ');
             const td = (aiState.turnStartedAt && aiState.turnTimeLimitMs) ? aiState.turnStartedAt + aiState.turnTimeLimitMs : undefined;
-            notifyTurnViaTelegram(next.id, aiState.roomCode, gameName, td);
+            notifyTurn(next.id, aiState.roomCode, gameName, td);
           }
         }
       } catch (e: any) {
@@ -203,7 +212,7 @@ export function Game({ onNavigate }: GameProps) {
     const timer = setTimeout(() => {
       reminderSentRef.current = turnKey;
       const gameName = gameState.players.map(p => p.nickname).join(' vs ');
-      notifyTurnReminderViaTelegram(currentPlayer.id, roomCode, gameName, minutesLabel, turnDeadlineTs);
+      notifyTurnReminder(currentPlayer.id, roomCode, gameName, minutesLabel, turnDeadlineTs);
       clearPendingReminder(roomCode);
     }, msUntilReminder);
 
@@ -350,14 +359,14 @@ export function Game({ onNavigate }: GameProps) {
     setError('');
   };
 
-  /** Notify the next human player via Telegram (fire-and-forget) */
+  /** Notify the next human player on every channel they enabled (fire-and-forget) */
   const notifyNextPlayer = (state: GameState) => {
     if (state.phase !== 'playing') return;
     const next = state.players[state.currentPlayerIndex];
     if (!next || next.isAI) return; // AI will play, notification deferred
     const gameName = state.players.map(p => p.nickname).join(' vs ');
     const td = (state.turnStartedAt && state.turnTimeLimitMs) ? state.turnStartedAt + state.turnTimeLimitMs : undefined;
-    notifyTurnViaTelegram(next.id, state.roomCode, gameName, td);
+    notifyTurn(next.id, state.roomCode, gameName, td);
   };
 
   const handleConfirmMove = async () => {
@@ -551,14 +560,18 @@ export function Game({ onNavigate }: GameProps) {
           lastRoundLegend={lastRoundData.legend}
           previewScore={previewScore}
           scoringPositions={scoringPositions}
-          tgConnected={tgConnected}
-          tgMuted={tgMuted}
-          onToggleTgMute={async () => {
-            const newMuted = !tgMuted;
-            setTgMuted(newMuted);
-            if (playerId) await setGameTelegramMute(playerId, roomCode, newMuted);
+          notifyConnected={notifyConnected}
+          notifyMuted={notifyMuted}
+          onToggleNotifyMute={async () => {
+            const newMuted = !notifyMuted;
+            setNotifyMuted(newMuted);
+            if (!playerId) return;
+            await Promise.all([
+              notifyChannels.telegram ? setGameTelegramMute(playerId, roomCode, newMuted) : null,
+              notifyChannels.push ? setGamePushMute(playerId, roomCode, newMuted) : null,
+            ]);
           }}
-          tgMuteTitle={tgMuted ? t('telegramUnmuteGame') : t('telegramMuteGame')}
+          notifyMuteTitle={notifyMuted ? t('notifUnmuteGame') : t('notifMuteGame')}
         />
       </div>
 
